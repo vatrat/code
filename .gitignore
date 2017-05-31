@@ -1,0 +1,17 @@
+# Code .gitignore
+
+# Mass-ignore
+*
+**/.swp
+**/.[#]*[#]
+
+# Git
+!/.gitignore
+
+# Language Folders
+!/python/
+!/python/**
+!/cpp/
+!/cpp/**
+!/haskell/
+!/haskell/**
