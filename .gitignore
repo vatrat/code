@@ -15,3 +15,5 @@
 !/cpp/**
 !/haskell/
 !/haskell/**
+!/embedded/
+!/embedded/**
