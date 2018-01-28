@@ -1,0 +1,17 @@
+\ 430eForth : code-begin                                               MM-150218
+
+#require code
+
+: end-code ( |$1234 -- )
+  \ End a cross-assembler definition or code sequence.
+    DUP $1234 = IF DROP ELSE end-code THEN ;
+
+: code-begin ( -- $1234 ) $1234 ;
+  \ Enable the cross-assembler. Do not create a word header.
+  \
+  \ Syntax:  code-begin 
+  \            ..........
+  \          end-code
+
+\ Last Revision: MM-151107 word names changed to upper for 430eForth
+

@@ -1,0 +1,105 @@
+e4thcom: 0.6.3 \ 430eforth.efc : plugin for 430eForth                  MM-161218
+\ ------------------------------------------------------------------------------
+\                   (C) 2016 manfred.mahlow@forth-ev.de
+\
+\            Tested MSP430G2553 LaunchPad with430eForth v4.3.
+\ ------------------------------------------------------------------------------
+cr
+<brown ." * Loading Plugin for 430eForth v4.3 (430eforth.efc)" normal>
+cr
+."    Use the " <bright ." TAB " normal> ." key to cancel an upload process."
+
+
+__e4thcom definitions decimal
+
+method here 2 c, ^CR c, ^NL c, 0 c, constant $^CR^NL
+
+  :noname ( oid -- flag ) \ for 4e4th
+     \ Wait while the target evalutes a line of uploaded source code. Return 
+     \ a true flag on error or on timeout. Return a false flag otherwise.
+     >self  self rx-buf erase white bright letters
+     begin
+       1000 self timeout ! self rx?timeout ( c f ) dup 0>
+       if ( break) 2drop true exit then if drop ."  timeout " true exit then
+       ( c ) dup self rx-buf append  dup self ?emit
+       ( c ) dup ^NL =
+       if
+         ( c ) drop __ $^CR^NL count 0 self rx-buf compare$ 0=
+         if
+           s" ?"  -2 self rx-buf compare$ 0=
+           if \ reDef <name>? shall not throw an error
+              self rx-buf @ s" Def " search nip nip 0= 
+              \ ( ." -") -1 
+             exit then
+           s"  ok" -2 self rx-buf compare$ 0= if 25 ms ( ." +") 0 exit then
+           25 self timeout !
+           self rx?timeout if ( ." *") drop 0 exit then
+           ( c ) dup self rx-buf append  self ?emit
+         then
+       else
+         ( c ) dup ^ACK = if drop false 25 ms exit then
+         ( c ) dup ^NAK = if drop true  25 ms exit then
+         ( c ) [char] w =
+         if s"  underflow" 0 self rx-buf compare$ 0= if space -1 exit then then
+       then
+     again ;
+
+  terminal plugin !
+  terminal upper-case on 
+  s" mcu:target:lib" terminal path !
+  warning off
+\ ------------------------------------------------------------------------------
+\ Last Revision: MM-171110 0.6.3 , path added
+\                MM-161224 e4thcom: 0.6.1
+\                MM-161223 replaced rx?break with rx?timeout to stopp uploading
+\                          after error messages send by ABORT".
+\                          ABORT" destroys the 430eforth image !!!!????
+
+\\ ============================================================================
+
+\ ^0A = ^NL   ^0D = ^CR 
+
+#i test  Uploading: ./test
+
+\ e4thcom test file for target protocol evaluation                     MM-150211
+
+\ Target response in interpret mode if no error occures:
+
+BASE ok^0D^0A
+
+DROP ok^0D^0A
+
+CR^0D^0A ok^0D^0A
+
+' BASE DROP ok^0D^0A
+
+\ Target response in interpret mode if an error occures:
+
+' X X?^0D^0A
+
+X X?^0D^0A
+
+QUIT
+
+ABORT ABORT?^0D^0A
+
+DROP underflow
+
+\ Target response in compile mode if no error occures:
+
+: Y ( -- )^0D^0A
+    BASE @ DROP^0D^0A
+; ok^0D^0A
+
+\ Target response in compile mode if an error occures:
+
+: Y ( -- ) reDef Y^0D^0A
+    ['] X EXECUTE ; [']?^0D^0A
+
+\\
+Closing: ./test  ok 
+ ok
+hi hi?
+HI
+430eForth v4.3
+

@@ -1,0 +1,19 @@
+\ 4e4th-0.34 : code-begin                                             MM-150218
+
+#require code
+
+hex
+
+: end-code ( |1234 -- )
+  \ Disable the (cross-)assembler
+    dup 1234 = if drop else end-code then ;
+
+: code-begin ( -- 1234 ) 1234 ;
+  \ Enable the (cross-)assembler. Do not create a word header.
+  \
+  \ Syntax:  code-begin 
+  \            ..........
+  \          end-code
+
+\ Last Revision: MM-151107
+

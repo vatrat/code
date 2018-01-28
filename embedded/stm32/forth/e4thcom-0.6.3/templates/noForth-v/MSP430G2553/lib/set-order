@@ -1,0 +1,16 @@
+
+\ noForth V : set-order  from 'noforth v more standard words.f'
+
+also extra definitions inside
+
+: SET-ORDER     ( wids.. n -- )
+   dup -1 = if drop 0 1 3 1 4 then      \ fresh
+   8 over u< ?abort                     \ overflow
+   v0 over - to vp
+   vp swap 0
+   ?do tuck c! 1+ loop drop ;
+
+previous
+
+\ MM-161003
+

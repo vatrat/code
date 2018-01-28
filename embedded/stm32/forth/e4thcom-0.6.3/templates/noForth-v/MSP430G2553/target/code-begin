@@ -1,0 +1,19 @@
+\ noForth:  code-begin                                                MM-151012
+
+#require code
+#require end-code
+
+: code-begin ( -- 0 -55 )
+  \ Enable the (cross) assembler.
+  \ Syntax: code-begin   ( -- 0 -55 )
+  \           ..........
+  \           .......... ( -- 0 -55 ) end-code  ( -- )
+    0 hx -55 ;
+
+: end-code ( 0 -55|55 )
+  \ Terminate a (cross) assembler code section or code definition.
+    dup hx -55 = if 2drop exit then end-code ;
+
+\ Last Revision: MM-160504
+
+\index  code  code-begin  end-code

@@ -1,0 +1,30 @@
+* projects start in three-letter files
+** it seems always.fs and board.fs should usually be copied
+** (optionally) core.fs should be created to import libraries
+** dev.fs should be created to hold any actual project code
+** the flib/ folder should be in the same directory as the project file
+*** just a side note, io.fs in flib/ is wonderfully convenient
+* devices should be flashed with the modified mecrisp-stellaris binary from jeelabs
+** it contains some changes like adding the "init" word
+** distributed in jeelabs/embello/explore/1608-forth (along with flib)
+*** also distributed standalone at jeelabs/mecrisp-stellaris
+** should be installed with stm32loader.py from unofficial mecrisp-stellaris docs
+*** Or using folie's !upload command
+*** python stm32loader.py -p /dev/ttyUSB0 -evw ~/path/to/f103-mecrisp-x.x.x.bin
+* Folie is needed to upload jeelabs files
+** Use the !send command
+*** Don't type anything while uploading or it will fail (I think)
+** E4thcom breaks on flash erasure commands and can't expand include lines
+** version 2.14 is HIGHER than version 2.7
+* e4thcom uses require statements
+** these have a 32 character limit, which is a problem
+*** this is bad for importing libraries, which have lots of folders
+*** imports should be handled in forth code with include
+**** if I can ever get that set up
+** these should be called as #require ../path/to/file.fs
+*** or #r ../path/to/file.fs
+** you can also call #ls or #ls ../path/to/dir
+** so far, I'm not sure how to install e4thcom
+*** I just have it in a folder with a script to run it on /dev/ttyUSB0
+* Interesting
+** suf

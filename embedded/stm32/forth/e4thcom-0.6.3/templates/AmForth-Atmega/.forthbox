@@ -1,0 +1,5 @@
+s" e4thcom,e4thcom -h,e4thcom -t amforth,e4thcom -t amforth-xas" 3
+s" B1200,B2400,B4800,B9600,B19200,B38400,B57600,B115200" 3
+s" ttyUSB0,ttyUSB1,ttyACM0,ttyACM1,ttyS0,ttyS1" 0
+s" gedit,medit,pluma" 0
+

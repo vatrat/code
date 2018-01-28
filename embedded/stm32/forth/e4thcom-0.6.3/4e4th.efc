@@ -1,0 +1,77 @@
+e4thcom: 0.6.3 \ 4e4th.efc : plugin for 4e4th-0.34 targets             MM-140831
+\ ------------------------------------------------------------------------------
+\                   (C) 2015-2016 manfred.mahlow@forth-ev.de
+\
+\          Tested with 4e4th-0.34 (4e4th.a43) on an MSP430G2553 LaunchPad.
+\ ------------------------------------------------------------------------------
+
+cr
+<brown ." * Loading Plugin for 4e4th 0.34 (4e4th.efc)" normal>
+cr
+."    Use the " <bright ." TAB " normal> ." key to cancel an upload process."
+
+__e4thcom definitions decimal
+
+method here 3 c, ^XON c, ^CR c, ^NL c, 0 c, constant $^XON^CR^NL
+
+  :noname ( oid -- flag ) \ for 4e4th
+     \ Wait while the target evalutes a line of uploaded source code. Return 
+     \ a true flag on error or if [Ctrl][B] was pressed. Return a false flag
+     \ otherwise.
+     >self  self rx-buf erase white bright letters
+     begin
+       self rx?break ( c f ) if drop true exit then  \ exit on break
+       ( c ) dup self rx-buf append  dup self ?emit ^NL =
+       if
+         __ $^XON^CR^NL count 0 self rx-buf compare$ 0=
+         if
+           s"  ?" -3 self rx-buf compare$ 0=
+           s" ?"  -5 self rx-buf compare$ 0= or exit
+         then
+       then
+     again ;
+
+terminal plugin !
+terminal upper-case off
+s" mcu:target:lib" terminal path !
+warning off
+ 
+\ Last Revision: 0.6.3 , path added
+\                MM-161227 e4thcom 0.6.1
+\                MM-160919 Version test added.
+\                MM-160814 modified for e4thcom-0.5.4
+
+\\ ============================================================================
+
+4e4th protocol details :
+
+_ = bl   ^0A = ^NL   ^0D = ^CR    ^11 = ^XON  
+ 
+[Enter]           _ok_^11^0D^0A
+
+X[Enter]          _X?^0D^0A^11^0D^0A   \ word not found
+
+'_base[Enter]     _ok_^11^0D^0A
+
+'_X[Enter]        _?^11^0D^0A          \ word not found by tick
+
+:_Y[Enter]        _^11^0D^0A
+
+.s[Enter]         _^11^0D^0A
+
+;[Enter]          _ok_^11^0D^0A
+
+:_Y[Enter]        _^11^0D^0A
+
+X[Enter]          _X?^0D^0A^11^0D^0A  \ word not found in compile mode
+
+:_Y_.s_;[Enter]   _ok_^11^0D^0A
+
+drop[Enter]       _ok_^11^0D^0A      \ no error message on stack underflow
+
+cr[Enter]         _^0D^0Aok_^11^0D^0A
+
+abort[Enter]      _^11^0D^0A
+
+\ abort" ...."    only returns ^11^0D^0A without a (trailing) ?      
+

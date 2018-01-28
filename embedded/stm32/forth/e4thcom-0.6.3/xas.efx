@@ -1,0 +1,160 @@
+\ xas.efx                                                             MM-160728
+\ -----------------------------------------------------------------------------
+\                 Generic e4thcom Cross Assembler Interface                      
+\
+\              Copyright (C) 2016-2017 manfred.mahlow@forth-ev.de
+\
+\ This program is free software; you can redistribute it and/or modify it under
+\ the terms of the GNU General Public License as published by the Free Software
+\ Foundation; either version 3 of the License, or (at your option) any later
+\ version, see http://www.gnu.org/licenses .
+\ -----------------------------------------------------------------------------
+\ Including this file to a new __e4thcom instance called terminal, adds words
+\ for a generic cross assembler interface to the terminals cross assembler 
+\ wordlist. 
+\ Please look at the file e4thcom/0.6.1/noforth-xas.efc how to add a cross 
+\ assembler or a disassembler to this interface.
+
+inside also
+
+terminal xas definitions hex
+
+: enable ( -- ) \ Enable the cross assembler inteface. 
+  false terminal no-asm ! ;
+
+: disable ( -- ) \ Disable the cross assembler interface.
+  true terminal no-asm ! ;
+
+: (xeval) ( h: a u -- )
+  \ Upload the string a,u to the target be evaluated as a command line.
+    terminal (xeval) ;
+
+: xeval ( h: a u -- )
+  \ Undercover upload the string a,u to the target be evaluated as a command
+  \ line. Do not display the targets response.
+    terminal xeval ;
+
+: xeval&pop ( h: a u -- x )
+  \ Undercover upload the string a,u to the target, wait fort the target to 
+  \ return a hex number and place this number on the hosts/terminals stack.
+    terminal xeval&pop ;
+
+
+\ Defaults for the cross assembler interface :
+
+__string new xas.xhere  6 chars xas.xhere init  s" here" xas.xhere !
+__string new xas.x,     6 chars xas.x,    init  s" ,"    xas.x,    !
+__string new xas.x!     6 chars xas.x!    init  s" !"    xas.x!    !
+__string new xas.xc@    6 chars xas.xc@   init  s" c@"   xas.xc@   !
+__string new xas.x@     6 chars xas.x@    init  s" @"    xas.x@    !
+
+: x$ ( x -- a u )
+  \ Convert the number x into a 16 or 32 bit hex number string.
+    base local hex
+    terminal max-u @ FFFF =
+    if \ 16 bit target
+      dup FFFF8001 10000 within 0= abort" x$ : 16Bit number expected"
+      FFFF and
+    then (.) ;
+
+: xhere ( h: -- a ) ( t: -- )
+\ Return the targets next available dictionary address on the hosts stack.
+\ xas.xhere @ s"  hex u." s+ xeval&pop ;         \ MM.161224
+  xas.xhere @ s"  hex u." s"  HEX U." terminal ?uc s+ xeval&pop ;
+
+: x! ( h: x a -- ) ( t: -- )
+  \ Store x at address a in the target dictionay.
+    >r x$ s"  " s+ r> x$ s+ s"  " s+ xas.x! @ s+ xeval ;
+
+: x, ( h: x -- ) ( t: -- )
+  \ Compile x at the targets next available dictionary address.
+    x$ s"  " s+ xas.x, @ s+ xeval ;
+
+: xc@ ( h: a -- c )
+  \ Read a byte from the targets dictionary address a to the host stack. 
+    x$ s"  " s+ xas.xc@ @ s+ s"  ." s+ xeval&pop ;
+
+: x@ ( h: a -- x )
+  \ Read a cell from the targets dictionary address a to the host stack. 
+    x$ s"  " s+ xas.x@ @ s+ s"  ." s+ xeval&pop ;
+
+
+: label ( -- )
+  \ In a cross assembler definition create a label pointing to the targets
+  \ next available unused dictionary address.
+  xhere [compile] to ;
+
+' label alias LABEL      \ MM-161224
+
+\ Five predefined lables:  LB01 ... LB05
+  0 dup value LB01 dup value LB02  dup value LB03  dup value LB04  value LB05
+
+{ label usage example (MSP430 noForth cross assembler) :
+
+code min ( n1 n2 -- n1|n2 )
+     sp )+ w mov tos w cmp  label LB01 >? if, w tos mov then, next end-code
+
+code max ( n1 n2 -- n1|n2 )
+     sp )+ w mov w tos cmp  LB01 jmp  end-code
+}
+
+: x[ ( "cccc]" t: i*x -- j*x h: -- x )
+  \ Parse ccc delimited by ] (right bracket) and append "<space>." When inter-
+  \ preting send the string to the target, wait for the targets response and 
+  \ then pop the targets TOS to the cross-assembler stack. When compiling 
+  \ compile the string and append the run-time semantics described above.
+  \
+  \ The targets BASE is set to HEX before and after evaluating the uploaded
+  \ code.
+\   s" hex " [char] ] parse s+ s" hex ." s+ state @  \ MM-161224
+    s" hex " s" HEX " terminal ?uc [char] ] parse s+
+    s" hex ." s" HEX ." terminal ?uc s+ state @
+    if postpone sliteral postpone xeval&pop else xeval&pop then ; immediate
+
+: MCU: ( "name" -- )
+  \ Load MCU Register Definitions from file name.efr
+    get-word s" .efr" s+ required ;
+
+: export ( "name1 name2 ... nameN" -- )
+  \ Copy bit and register identifiers (constants) from the cross-assembler
+  \ vocabulary to the target vocabulary if they do not already exist on the 
+  \ target. Throw an error "? undefine word" if a name does not exist in the
+  \ cross-assembler search order.
+    base local hex
+\   terminal dup @xbase @ execute
+\   s" base @ hex ." terminal xeval&pop terminal xbase !    \ MM-161224
+    s" base @ hex ." s" BASE @ HEX ." terminal ?uc
+    terminal xeval&pop terminal xbase ! 
+    begin
+      >in @ >r get-word
+      2dup s" \" compare 0= if [compile] \ false else dup then
+    while
+      2dup terminal missing?
+      if
+        evaluate ( -- x ) x$ terminal max-u @ FFFF =
+        if dup abs FFFF0000 and abort" export: invalid argument"
+           s" ( hex )     "  s" ( HEX )     "                 \ MM-161224
+        else
+           s" ( hex )         "  s" ( HEX )         "
+        then
+        terminal ?uc                                      \ MM-161224
+\       2 pick - 2swap s+ s"  constant " s+
+        2 pick - 2swap s+ s"  constant "  s"  CONSTANT " terminal ?uc s+
+        r> >in ! get-word s+ (xeval)
+      else 2drop r> drop then
+    repeat
+    2drop r> drop
+\   terminal xbase @ x$ s"  base !" s+ terminal xeval ;    \ MM-161224
+    terminal xbase @ x$ s"  base !" s"  BASE !" terminal ?uc s+ terminal xeval ;
+
+previous forth definitions decimal
+
+\ -----------------------------------------------------------------------------
+\ Last Revision: MM-171109 hex/HEX commented out in export
+\                MM-170110 inside added
+\                MM-161224 ?uc added, LABEL added
+\                MM-161224 copy from 0.6.0 for 0.6.1
+\                MM-160810 Some glossary comments added.
+\                MM-160728 cross assembler interface moved from the e4thcom
+\                          file to this one.
+

@@ -1,0 +1,18 @@
+\ e4thcom 0.5.3 cross-assembler interface for 4e4th-0.34             MM-150218
+
+hex
+
+: code ( <name> -- )
+  \ start a (cross-) assembler definition
+    <builds hide ihere dup 2 -  i! ;
+  \
+  \ Syntax:  code name 
+  \            .......... 
+  \          end-code
+
+: end-code ( -- )
+  \ Disable the (cross-)assembler
+    reveal ;
+
+\ Last Revision: MM-151107
+

@@ -1,0 +1,64 @@
+\ MSP430 Cross Assembler Syntax Examples for noForth                 MM-150228
+
+#require code
+
+\xas MCU: MSP430G2553
+
+\xas : drop, ( -- ) sp )+ tos mov ;
+
+\xas : dup, ( -- ) tos sp -) mov ;
+
+\xas : push, ( x -- ) dup, tos mov ;
+
+code base@ ( -- x )
+     x[ base ] & push, next end-code
+
+code base! ( x -- )
+     tos x[ base ] & mov  drop, next end-code
+
+
+code P1.0~ ( -- )
+     BIT0 # P1OUT & .b bix next end-code
+
+\res export P1OUT BIT0
+
+code cb~ ( bit port -- )
+     x[ ' *bix >body ] jmp end-code
+
+
+code min ( n1 n2 -- n1|n2 )
+     sp )+ w mov tos w cmp  label LB01  >? if, w tos mov then, next
+     end-code
+
+code max ( n1 n2 -- n1|n2 )
+     sp )+ w mov w tos cmp  LB01 jmp  end-code
+
+
+\ Creating an interrupt service routine
+
+#require code-begin
+
+code-begin create S2.isr ( -- a )
+  ( some asm code ) reti
+end-code
+
+\res  FFE4 equ PORT1_VECTOR
+\res    export PORT1_VECTOR
+
+\ S2.isr PORT1_VECTOR vec!
+
+\ A possible approach to test a code ISR
+
+code-begin ( -- )
+  label LB01 BIT0 # P1OUT & .b bix ret
+end-code
+
+code ~P1.0 
+     LB01 # call next end-code
+
+code-begin create ~P1.0.isr
+  LB01 # call reti
+end-code
+
+\ Last revision: MM-160504
+

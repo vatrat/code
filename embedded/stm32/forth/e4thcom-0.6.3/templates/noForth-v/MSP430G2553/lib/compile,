@@ -1,0 +1,7 @@
+
+\ noforth :  compile,                                                  MM-151019
+
+v: forth definitions
+
+: compile, ( xt -- ) , ;
+

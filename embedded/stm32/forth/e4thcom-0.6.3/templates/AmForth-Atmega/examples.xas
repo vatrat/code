@@ -1,0 +1,37 @@
+\ Some simple cross assembler examples                               MM-151107
+
+marker examples.xas
+
+#require code
+
+\res warning off
+
+hex
+
+\res  R24 equ TOSL  R25 equ TOSH
+
+\xas : loadtos, TOSL Y+ ld, TOSH Y+ ld, ;  \ some macros taken from amforth
+\xas : savetos, -Y TOSH st, -Y TOSL st, ;  \ 
+
+code base_ ( -- a )
+     savetos, x[ base ] ( h: -- a )
+     TOSH over 8 rshift ldi,  TOSL swap ldi,
+     end-code
+
+code base_@ ( -- x )
+     savetos, x[ base ] ( h: -- a )
+     TOSH over 8 rshift ldi,  TOSL swap ldi,
+     x[ ' @ @i ] 0 jmp,
+     end-code
+
+code sp_
+     savetos, TOSL YL movw, end-code
+
+code 1+_ ( x -- x+1 )
+     TOSL 1 .s adiw, end-code
+
+code 2*_ ( x -- 2x )
+     TOSL lsl, TOSH rol, end-code
+
+\
+

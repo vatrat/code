@@ -1,0 +1,62 @@
+\ e4thcom: MSP430 Cross Assembler Syntax Examples                      MM-150228
+
+#require CODE
+
+\xas MCU: MSP430G2553
+
+\xas : drop, ( -- ) sp )+ tos mov ;
+
+\xas : dup, ( -- ) tos sp -) mov ;
+
+\xas : push, ( x -- ) dup, tos mov ;
+
+CODE base@ ( -- x )
+     x[ BASE ] & push, NEXT END-CODE
+
+CODE base! ( x -- )
+     tos x[ BASE ] & mov  drop, NEXT END-CODE
+
+\xas  ' xor> alias bix
+
+CODE P1.0~ ( -- )
+     BIT0 # P1OUT & .b bix NEXT END-CODE
+
+\res export P1OUT BIT0
+
+CODE min ( n1 n2 -- n1|n2 )
+     sp )+ w mov tos w cmp  label LB01  >? if, w tos mov then, NEXT
+     END-CODE
+
+CODE max ( n1 n2 -- n1|n2 )
+     sp )+ w mov w tos cmp  LB01 jmp  END-CODE
+
+\\
+
+\ Creating an interrupt service routine     not yet edited for 430CamelForth
+
+create S2.isr ( -- a )
+          CODE-BEGIN
+            ( some asm code ) reti
+          END-CODE
+
+\res  FFE4 equ PORT1_VECTOR
+\res    export PORT1_VECTOR
+
+\ S2.isr PORT1_VECTOR vec!
+
+\ A possible approach to test a code ISR
+
+CODE-BEGIN ( -- )
+  label LB01 BIT0 # P1OUT & .b bix ret
+END-CODE
+
+CODE ~P1.0 
+     LB01 # call NEXT END-CODE
+
+create ~P1.0.isr
+          CODE-BEGIN
+            LB01 # call reti
+          END-CODE
+
+\ Last revision: MM-161229  Forth words changed to upper case for 430CamelForth
+

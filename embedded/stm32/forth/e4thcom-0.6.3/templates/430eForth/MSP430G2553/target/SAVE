@@ -1,0 +1,18 @@
+\ 430eForth:  SAVE                                                    MM-170206
+
+' DUMP 4 + @ CONSTANT $DOLIT
+
+: HI ( -- )
+\ Scan Flash Memory down from $FFC0 and set CP to the lowest free memory cell.
+    $FFC0  DUP BEGIN 2 - DUP @ $FFFF - UNTIL 2 + ( a0 a1 ) 
+    DUP CP ! BASE @ >R HEX DUP U. ." :" - DECIMAL U. R> BASE ! HI
+;
+
+: SAVE ( -- )
+\ Reset 'BOOT to HI and save the user variables to the cold start data area.
+  [ $DOLIT , ' HI , ] APP! ;
+
+SAVE
+
+\index  SAVE
+

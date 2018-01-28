@@ -1,0 +1,25 @@
+e4thcom: 0.6.3  \ anyforth.efc : generic e4thcom plugin                MM-161231
+
+<brown
+cr  .( * Loading Plugin anyforth.efc for file uploading without any error checking.)
+normal>
+cr
+."    On error use the " <bright ." TAB " normal> ." key to cancel the upload process."
+cr  .(    Only uploading with #i[nclude] is supported. Delay at EOL is ~ 100 ms.)
+
+
+__e4thcom definitions decimal
+
+:noname ( oid -- flag )
+   >self  self rx-buf erase  100 self timeout !  white bright letters
+   begin
+     self rx?timeout ( c f ) if drop cr false exit then self ?emit
+   again ;
+
+terminal plugin !
+terminal upper-case off
+s" mcu:target:lib" terminal path !
+warning off
+
+\ Last Revision: MM-171110 0.6.3
+

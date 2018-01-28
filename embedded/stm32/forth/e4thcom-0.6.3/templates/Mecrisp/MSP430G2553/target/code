@@ -1,0 +1,29 @@
+\ xas : e4thcom cross-assembler interface for mecrisp-2.0.2           MM-151003
+
+compiletoflash  hex
+
+: code-begin ( -- base -55 )
+  \ Enable the (cross-)assembler.
+    state @ postpone [ base @ hex -55 immediate ;
+  \
+  \ Syntax:  code-begin 
+  \            ..........
+  \          end-code
+
+: ?hex ( -- ) 10 base @ - if ." ? base changed" cr quit then ;
+
+: end-code ( base 55 | state base -55 -- )
+  \ Disable the (cross-)assembler
+    dup abs 55 - if ." Stack not balanced." cr quit then
+    swap ?hex base ! 55 = if smudge else state ! then immediate ;
+
+: code ( <name> -- base 55  )
+  \ Start a (cross-)assembler definition
+    : postpone [ base @ hex 55 ;
+
+  \ Syntax:  code name 
+  \            .......... 
+  \          end-code
+
+
+\ Last Revision: MM-150426 derived from e4thcom noforth examples

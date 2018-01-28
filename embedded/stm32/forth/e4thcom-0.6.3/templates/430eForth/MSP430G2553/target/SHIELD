@@ -1,0 +1,25 @@
+\ 430eForth :  SHIELD                                                 MM-170202
+
+#require eForth
+
+\ $214 CONSTANT LAST
+
+: SHIELD ( "name" -- )
+    CP @ 1 + -2 AND CP !    \ align  
+    :                       \ start colon definition
+    $LIT , DP @ ,           \ save DP
+    $LIT , $214 @ ,         \ save NFA of created shield
+    $LIT , CP @ 2 IALLOT    \ LB1: to save CP to later
+    $RW ,                   \ xt.rewind
+    [ ' ; , ]               \ end colon definition
+    CP @ ( .S) SWAP I!      \ save CP to LB1
+    SAVE
+;
+
+SAVE
+
+\ Last Revision: MM-170206  DOLIT renamed to $LIT
+\                MM-170205  'BOOT @ APP!  replaced with  SAVE
+
+\index  SHIELD  SAVE  RESET
+

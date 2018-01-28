@@ -1,0 +1,14 @@
+#!/bin/bash
+#
+# MM-161230  Script to flash a MSP430G2553 Launchpad
+
+IMAGE="noforth v2553 lp.0 160401.a43"
+
+echo -ne "\033[1mMSPDebug: Programming MSP430 LaunchPad with $IMAGE ?\033[0m"
+
+read -n 1 -p " [N/y] " REPLY ; echo
+
+if [ ! "$REPLY" == "y" ] ; then exit ; fi
+
+mspdebug rf2500 'erase all' "prog $IMAGE" "verify $IMAGE"
+

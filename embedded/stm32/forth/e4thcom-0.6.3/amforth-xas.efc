@@ -1,0 +1,34 @@
+e4thcom: 0.6.3 \ amforth-xas.efc                                       MM-150406
+\
+\ (C) 2015-2016 manfred.mahlow@forth-ev.de
+\
+
+include amforth.efc
+
+cr <brown
+." * Loading Cross-Assembler for AmForth on ATmega Chips (amforth-xas.efc)"
+normal>
+cr ."   (based on the assembler for Atmega chips by Lubos Pekny, www.forth.cz)"
+
+terminal xas definitions hex
+
+warning off  \  change to on for asm debugging
+
+\ Cross-Assembler Interface : Words for target dictionary access
+
+\ FFFF   target.max-u !      \ 16 Bit target
+s" dp"    xas.xhere !         ' xhere alias xdp
+s" !i"    xas.x!    !         ' x! alias x!i
+s" ,"     xas.x,    !
+s" c@"    xas.xc@   !         \ not used, what to do ?
+s" @i"    xas.x@    !         ' x@ alias x@i
+
+include avrxasm.efx    \ the cross-assembler core
+
+forth definitions decimal
+
+\ Last Revision: MM-171110 0.6.3
+\                MM-170102 e4thcom-0.6.1
+\                MM-151112 file renamed to amforth-xas.efc
+\                MM-151007 file renamed to amforth-ATmega.efc
+

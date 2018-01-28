@@ -1,0 +1,57 @@
+e4thcom: 0.6.3  \ amforth.efc : plugin for amforth targets            MM-140831
+\
+\ Tested with amforth 5.1 and 6.0 on Arduino Duemilanove
+\
+\  BL^CR^NL>  received  =  error
+\  BLok       received  =  ok
+\  timeout =  target doesn't answer or is waiting for user imput
+
+cr
+<brown ." * Loading Plugin for AmForth (amforth.efc)" normal>
+cr
+."    Use the " <bright ." TAB " normal> ." key to cancel an upload process."
+
+__e4thcom definitions decimal
+
+method here 4 c, bl c, ^CR c, ^NL c, char > c, 0 c, constant $BL^CR^NL>
+
+m: ?EOL ( oid -- )
+        begin 4 self timeout ! self rx?timeout 0= while drop repeat drop
+        self emit? @ if cr then ;
+
+m: target_error? ( oid -- ) __ $BL^CR^NL> count 0 self rx-buf compare$ 0= ;
+
+:noname ( oid -- flag )
+   \ Wait while the target evalutes a line of uploaded source code. Return 
+   \ a true flag on error, a false flag otherwise.
+     >self white bright letters  self rx-buf erase
+     \ The target returns ^CR^NL when the host send a ^CR at the end of a line.
+     \ We replace it with a space here.
+     2 0 do self rx?break 2drop loop bl self ?emit
+     1000 self timeout !
+     begin
+       key? if \ send input to the target or cancel the current upload process
+         key dup 2 ( ^B ) = if drop self break-msg true exit then self tx.0
+       then
+       self rx
+       if \ no char received
+         drop self timeout ? if self rx-buf erase  250 self timeout ! then
+       else \ a char received
+         ( c ) dup self ?emit  self rx-buf append
+         s"  ok" 0 self rx-buf compare$ 0= if self ?EOL false exit then
+         self target_error? if self ?EOL true exit then
+         250 self timeout !
+       then
+     again ;
+
+terminal plugin !
+s" mcu:target:lib" terminal path !
+warning off
+
+\ Last Revision: MM-171110 0.6.3
+\                MM-170102 e4thcom-0.6.1
+\                MM-160813 __SmartTerm --> __e4thcom
+\                MM-160730 new class prefix: __ 
+\                MM-151007 code rewritten to support quit and abort and allow
+\                          the target to wait vor user input while uploading
+

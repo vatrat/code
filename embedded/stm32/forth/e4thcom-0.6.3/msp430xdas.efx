@@ -1,0 +1,252 @@
+e4thcom: 0.6.3 \ MSP430 Cross Disassembler for noForth                MM-151012
+\
+\ This is the disassembler from noForth C,V with some modification to make it
+\ work as a loadable module for the e4thcom terminal.
+\
+\ Modifications are (C) 2015-2016 manfred.mahlow@forth-ev.de 
+
+
+\ Disassembler for noForth C,V
+\ (C) 2015, Albert Nijhof & Willem Ouwerkerk
+\ an    -- 05mei12 -- 430 disassembler
+
+\ This disassembler output uses noForth assembler notation.
+\ MSP assembly     disassembles to
+\ ------------     ------------      --------------
+\ PC TOS           pc tos            Register names
+\ PC@              pc )              Indirect addressing
+\ @PC+             pc )+             Indirect with autoincrement
+\ 430              xx pc x)          xx + pc = 430 (Symbolic mode)
+\ 2(R8)            2 r8 x)           Indexed
+\ #430             430 #             constant 430 assembled as pc )+
+\ &430             430 &             Absolute using SR
+\ #4 #8            #4 #8             Constants using RS
+\ #0 #1 #2 #-1     #0 #1 #2 #-1      Constants using CG
+
+hex  \ until the end
+
+\ --- MM-151012
+\ V:   fresh inside definitions
+\
+terminal xas also terminal xdas definitions       \ MM-160729
+\
+' s" alias S"
+\
+: M, ( a u -- ) tuck here placez 2+ aligned allot ;
+\
+: x@ x@ FFFF and ;
+\
+0 value _addr_
+: x@+ ( t-addr -- t-addr+cell x ) dup 2+ swap x@  ;  \ replaces @+
+: xcount ( t-addr -- t-addr+1 c ) dup 1+ swap xc@ ;  \ replaces count
+\ ---
+
+0 value dasa
+0 value dasa+
+\ : GETCELL ( -- dascode )    dasa+ dasa + @  2 +to dasa+ ;
+  : GETCELL ( -- dascode )    dasa+ dasa + x@  2 +to dasa+ ;   \ MM-151012
+\ : BL- ( a n -- a n2 )  dup 0 do 2dup + 1- c@ bl = + loop ; \ -trailing
+
+: .MNEMO  ( +n adr -- )
+  swap 2* 2* + 4
+  dup 0 do 2dup + 1- c@ bl = + loop
+  type space ;
+
+:  .W&W ( -- )                          \ Print where and what
+   <brown
+   cr dasa 5 u.r ." :" space            \ Print address
+\  dasa 2 0 do count dup 7F bl within if drop bl then emit
+   dasa 2 0 do xcount dup 7F bl within if drop bl then emit  \ MM-151012
+            loop drop space             \ Print text
+\  dasa @   5 u.r 3 spaces              \ Print content
+   dasa x@   5 u.r 3 spaces             \ Print content       \ MM-151012
+   2 +to dasa ;
+
+
+{ MM-151014
+\ chere
+here 1+ to _addr_
+\  R0  R1  R2  R3  R4  R5  R6  R7  R8  R9  R10 R11 R12 R13 R14 R15
+S" pc  rp  sr  cg  sp  ip  w   tos day moonsun xx  yy  zz  dox nxt "  M,
+
+: .DST ( a r -- )  \ ." .DST:" over . dup .
+   over 1 = if GETCELL u.
+      dup 2 = if  2drop ." & " exit then then
+\  [ rot ] literal .MNEMO
+   [ _addr_ ] literal .MNEMO
+   dup 1 = if ." x)" then
+   dup 2 = if ." )"  then
+   dup 3 = if ." )+" then
+   if space then ;
+}
+
+\ --- MM-151014
+__string new regs  64 chars regs init
+\  R0  R1  R2  R3  R4  R5  R6  R7  R8  R9  R10 R11 R12 R13 R14 R15
+s" pc  rp  sr  cg  sp  ip  w   tos day moonsun xx  yy  zz  dox nxt " regs !
+\
+: .DST ( a r -- )  \ ." .DST:" over . dup .
+   over 1 = if GETCELL u.
+      dup 2 = if  2drop ." & " exit then then
+\  [ rot ] literal .MNEMO
+   regs @ drop .MNEMO        
+   dup 1 = if ." x)" then
+   dup 2 = if ." )"  then
+   dup 3 = if ." )+" then
+   if space then ;
+\ ---
+
+
+
+: .SRC ( a reg -- )
+   dup 3 = if drop dup 3 = if 4 - then  ." #" . exit then     \ cg #-1 #0 #1 #2
+   over 2 and over 2 = and if ." #" 1- swap lshift . exit then  \ sr #4 #8
+   over 3 = over 0= and if 2drop
+   GETCELL u. ." # " exit then .DST ;
+
+: B/W     ( dascode -- )  40 and if ." .b " then ;
+
+\ chere
+here 1+ to _addr_   \ MM-151012
+S" RRC SWPBRRA SXT PUSHCALLRETI7?  "  M,
+: ONE-OP ( dascode 1 )
+   drop >r
+   r@ ( dascode )  7 rshift 7 and   dup 6 <>  \ not reti?
+   if    r@ 4 rshift 3 and   r@ 0f and .SRC   r@ B/W
+   then  r> drop
+\  [ rot ] literal .MNEMO ;
+   [ _addr_ ] literal .MNEMO ;    \ MM-151012
+
+\ chere
+here 1+ to _addr_   \ MM-151012
+\ MM-170121
+\ S" MOV ADD ADDCSUBCSUB CMP DADDBIT BIC BIS XOR>AND>"  M,
+  S" MOV ADD ADDCSUBCSUB CMP DADDBIT BIC BIS BIX BIA "  M,
+
+: TWO-OP ( dascode 4..F )
+   swap 
+\ MM-150501
+\  ( src a,r ) dup 4 rshift 3 and   over 8 rshift 0F and   .SRC space space
+   ( src a,r ) dup 4 rshift 3 and   over 8 rshift 0F and   .SRC 
+   ( dst a,r ) dup 7 rshift 1 and   over          0F and   .DST  B/W
+   ( mnemo )   4 - 
+\  [ rot ] literal .MNEMO ;
+   [ _addr_ ] literal .MNEMO ;    \ MM-151012
+
+\ chere
+here 1+ to _addr_   \ MM-151012
+\  J0<>J0= JCC JCS J0< J>= J<  GOTO"
+S" =?  <>? cs? cc? pos?>?  <eq?    "  M,
+: JMP-OP ( dascode 2..3 )
+   drop
+   dup 03FF and 0200 over and    \ Negative distance?
+   if FC00 or
+\  then s>d >r          \ Backward?
+   then dup 8000 and >r  \ MM-151013
+   2* dasa +            \ Calculate destination
+   swap 0A rshift 7 and
+   dup
+\  [ rot ] literal .MNEMO
+   [ _addr_ ] literal .MNEMO   \ MM-151012
+   7 =
+   if 8 emit r@ if ." AGAIN," else ." AHEAD," then
+   else      r@ if ." UNTIL," else ." IF," then
+\  then 5 spaces   ch + r> 2* - emit   ch > emit   u. ;
+   then 5 spaces [char] + r> 2* - emit [char] > emit   u. ;   \ MM-151012
+
+false [if]  \ MM-161102
+
+\ Decode one instruction, addr has to be in dasa
+: DAS+ ( -- ) \ disassemble next instruction
+   dasa x@+ = if .W&W ." --- cfa ---" then
+   .W&W   0 to dasa+
+\  dasa cell- @   dup
+   dasa 2 - x@  dup       \ MM-151012
+   dup 0C rshift                        \ opcode  n
+        dup 0=  if 2drop ." ?"          \ Invalid opcode
+   else dup 1 = if ONE-OP
+   else dup 4 < if JMP-OP
+   else ( 4..F )   TWO-OP
+   then then then 4F00 = if ." --->>"  cr then
+\  dasa+ 2/ 0 ?do dasa x@+ = if leave then .W&W loop
+   dasa+ FFFF and 2/ 0 ?do dasa x@+ = if leave then .W&W loop   \ MM-151012
+   dasa x@+ = if cr then  ;
+
+\ ----- User words
+\ --- MM-151012
+\ V:   forth definitions inside
+\ : MDAS ( adr -- ) to dasa begin  das+  stop? until  ;
+\ : DAS  ( ccc -- ) ' mdas ;
+\ V:   fresh
+\ shield DAS\ freeze
+\ <><>
+\ MM-160814
+: stop? 7 spaces <brown ." space = cont. / return = stop " key bl - ;
+\
+: stop? ( -- f )
+  cr <brown ."            [Enter] = stop " 
+  400 begin 1 ms key? if key drop exit then 1- dup 0= until ;
+
+
+: MDAS ( adr -- ) FFFF and hex to dasa
+    cr ."  addr   content   instruction" 
+    begin  7 0 do DAS+ loop 3 spaces stop? until normal> ;
+
+' MDAS terminal xt(xdas) !
+
+[else]  \ MM-161102  
+
+: stop? 7 spaces <brown ." space = cont. / return = stop " key bl - ;
+\
+: stop? ( -- f )
+  <brown ."    [Enter] = stop " 
+  200 begin 1 ms key? if key drop exit then 1- dup 0= until ;
+
+\ Decode one instruction, addr has to be in dasa
+: DAS+ ( -- f ) \ disassemble next instruction
+   dasa x@+ = if .W&W ." --- cfa ---" then
+   .W&W   0 to dasa+
+\  dasa cell- @   dup
+   dasa 2 - x@  dup       \ MM-151012
+   dup 0C rshift                        \ opcode  n
+        dup 0=  if 2drop ." ?"          \ Invalid opcode
+   else dup 1 = if ONE-OP
+   else dup 4 < if JMP-OP
+   else ( 4..F )   TWO-OP
+\ MM-161230
+\  then then then 4F00 = if ." --->>"  stop? if true exit then cr then
+   then then then 4F00 = if ." --->>" ( stop? if true exit then) cr then
+
+\  dasa+ 2/ 0 ?do dasa x@+ = if leave then .W&W loop
+   dasa+ FFFF and 2/ 0 ?do dasa x@+ = if leave then .W&W loop   \ MM-151012
+   dasa x@+ = if cr then false ;
+
+\ ----- User words
+\ --- MM-151012
+\ V:   forth definitions inside
+\ : MDAS ( adr -- ) to dasa begin  das+  stop? until  ;
+\ : DAS  ( ccc -- ) ' mdas ;
+
+: MDAS ( adr -- ) FFFF and hex to dasa
+    cr ."  addr   content   instruction" 
+    FF 0 do DAS+ if leave then loop normal> ;
+
+' MDAS terminal xt(xdas) !
+
+[then]
+
+previous forth definitions
+
+\ Last revision: MM-171031 0.6.3
+\                MM-170121 XOR> --> BIX , AND> --> BIA
+\                MM-161014 e4thcom: 0.6.1
+\                MM-161014 e4thcom: 0.6.0
+\                MM-161010 e4thcom: 0.5.5
+\                MM-160814 stop? changed
+\                MM-160729 xdas --> xt(xdas)
+\                MM-151013 First xdas integration for noForth
+
+
+
+
+

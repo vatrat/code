@@ -1,0 +1,17 @@
+README : e4thcom-0.6.3 Project Directory Templates
+
+In this directory you will find some Project Directory Templates for supported
+Target Forth Systems, to be used as an example or as a starting point for your
+projects.
+
+Using the templates is not mandatory. You can use any directory as a project
+directory, also an empty one.
+
+The templates may come with some source code files (e.g. cross-assembler usage
+examples) and with image files for supported targets to make getting started 
+a bit easier. 
+
+The copyright for all this belongs to the creators. Please see and respect the
+copyright notes in the files and in the related target forth distributions.
+
+Last Revision: MM-171110

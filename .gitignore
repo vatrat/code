@@ -17,3 +17,5 @@
 !/haskell/**
 !/embedded/
 !/embedded/**
+.pioenvs
+.piolibdeps

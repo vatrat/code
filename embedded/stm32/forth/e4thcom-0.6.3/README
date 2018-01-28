@@ -1,0 +1,21 @@
+e4thcom-0.6.3  A Terminal for Embedded Forth Systems                   MM-171110
+
+Copyright (C) 2013-2017 Manfred Mahlow
+
+Abstract
+
+e4thcom for the Linux OS (32 Bit executables for X86 and Raspberry/Raspbian) is
+a terminal program for embedded Forth Systems. 
+
+e4thcom and all related files are released with ABSOLUTELY NO WARRANTY. It is
+free software under the terms of the GNU General Public License as published 
+by the Free Software Foundation; either version 3 of the License, or any later
+version, see http://www.gnu.org/licenses.
+
+The copyright of code examples or target image files in the template folders 
+corresponds to that one of the distributions they have been derived from (see
+the reference notes and the README in the template folder).
+
+For further information please read the file e4thcom-0.6.3/doc/e4thcom.pdf.
+
+

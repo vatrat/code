@@ -1,0 +1,121 @@
+\ voc : A vocabulary prefix for noForth V                              MM-160205
+\
+\ Vocabulary prefixes help to structure the dictionary, make it more readable.
+\
+\ A vocabulary prefix is an immediate word. It reads the next word from the 
+\ input stream (waits for it), finds it in its private wordlist and then 
+\ executes or compiles it.
+\
+\ Usage: #require voc      \ loads this file
+\
+\        voc name          \ creates a new vocabulary prefix
+\
+\        name definitions  \ makes name (names wordlist) the current compilation
+\                          \ context 
+\
+\ Example:  voc i2c  i2c definitions
+\
+\             variable sid   \ slave id
+\
+\             : start ... ;  \ start an I2C Bus transmission
+\
+\             ...            \ more I2C definitions
+\
+\           forth definitions
+\
+\           i2c words    \ shows all i2c words and stays in the i2c context
+\                        \ entering a name or .. closes the context
+\           i2c start    \ executes/compiles the word start from context i2c    
+\
+\ Requires 286 bytes without debugging tools.
+\ ------------------------------------------------------------------------------
+
+fresh
+
+#require wordlist
+\ wordlist does not align the dictionary addr, should do it, otherwise order
+\ fails and noForth may crash later
+
+#require words
+#require compile,
+#require search-wordlist
+#require set-current
+
+fresh inside definitions hex
+
+wordlist constant voc-root ( -- wid ) \ the root wordlist inherited by all vocs
+
+value voc-context ( -- wid )  \ points to the wordlist of the last used voc
+
+: search-voc-context ( "name" -- 0 | xt 1 | xt -1 )
+  \ Find name in the actual voc context.
+    bl-word count ( a u )      \ bl-word waits for input
+    2dup voc-context search-wordlist ( adr len wid -- 0 | xt 1 | xt -1 )
+    ?dup 
+    if 
+      2swap 2drop
+    else
+      voc-root search-wordlist ( adr len wid -- 0 | xt 1 | xt -1 )
+    then ;
+
+
+: dovpx ( "name" -- )
+  \ Read the next word from the input stream, find it in the actual voc context
+  \ and execute (state=0 or word=immediate) or compile it (state<>0).
+    search-voc-context dup 0= ?abort state @ = if compile, else execute then ; 
+
+fresh definitions inside
+
+{
+: voc ( "name" -- )
+  \ Create a vocabulary prefix. Minimalistic generic version, context names are
+  \ not displayed by order and see.
+    wordlist create , immediate 
+    does> ( a -- )
+          \ Set the current vocabulary prefix context and execute dovpx.
+          @ to voc-context dovpx ;
+}
+
+\ noForth specific version
+: voc ( "name" -- ) 
+  \ Create a vocabulary prefix. noForth specific version. Context names are 
+  \ displayed by order and see.
+   create wordlist drop chere created lfa>N - chere 1- ROMC!  immediate
+     does> cell+ c@ to voc-context dovpx ;
+
+voc-root set-current  \ root voc definitions
+
+: definitions ( -- ) voc-context set-current ;
+
+fresh definitions
+
+\ ------------------------------------------------------------------------------
+\ Tools, only required for debugging (216 bytes):
+\ ------------------------------------------------------------------------------
+
+#require show-wordlist
+
+inside
+
+voc-root set-current   \ root voc definitions, visible in all voc contexts
+
+: words ( -- ) voc-context show-wordlist voc-root show-wordlist dovpx ;
+
+: .. ; immediate  \ return from a voc context to the Forth context
+
+: ' ( "name" -- xt )
+  \ Return the execution tooken of the word name in the actual voc context.
+    search-voc-context 0= ?abort ;
+
+fresh definitions
+
+\ ------------------------------------------------------------------------------
+\ voc + debugging tools require 502 bytes.
+\ ------------------------------------------------------------------------------
+\ Last Revision: MM-170301 some names changed
+\                MM-161015 some comments added
+\                MM-160320 lib renamed to voc ...
+\                MM-160215 wordlist address must be aligned !!!!!
+\                          otherwise order fails (and what else?)
+
+

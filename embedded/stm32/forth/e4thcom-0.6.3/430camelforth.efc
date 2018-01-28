@@ -1,0 +1,117 @@
+e4thcom: 0.6.3 \ 430CamelForth.efc : plugin for 430CamelForth v0.5     MM-16126
+\ ------------------------------------------------------------------------------
+\                   (C) 2016 manfred.mahlow@forth-ev.de
+\
+\    Tested with MSP430 CamelForth v0.5 on a MSP430G2553 LaunchPad.
+\ ------------------------------------------------------------------------------
+
+<brown
+cr ." * Loading Plugin for MSP430 CamelForth v0.5 (430camelforth.efc)" 
+normal>
+cr
+."    Use the " <bright ." TAB " normal> ." key to cancel an upload process."
+
+
+__e4thcom definitions decimal
+
+method here 3 c, char ? c, ^CR c, ^NL c, 0 c, constant $?CRNL
+method here 5 c, ^CR c, ^NL c, char o c, char k c, bl c, 0 c, constant $CRNLok
+method here 3 c, bl c, ^CR c, ^NL c, 0 c, constant $blCRNL
+
+m: noprompt ( oid -- ) self emit? @ if ^CR emit 4 spaces ^CR emit then ;
+
+  :noname ( oid -- flag ) \ for 4e4th
+     \ Wait while the target evalutes a line of uploaded source code. Return 
+     \ a true flag on error, a false flag otherwise.
+     >self  self rx-buf erase white bright letters
+\    ." |>"
+     200 self timeout !  \ timeout if the target does not respond at all
+     self rx?timeout ( c f ) dup 0> if 2drop true exit then  \ ? break
+     if drop ."  timeout" true exit then
+     ( c ) dup self rx-buf append  self ?emit
+   \ wait for the first char of the targets response
+     self rx?timeout ( c f ) dup 0> if 2drop true exit then  \ ? break
+     if drop else dup self rx-buf append  self ?emit then
+   \ wait for subsequent chars, on timeout check for ok- or error-condition
+     begin
+       25 self timeout !
+       self rx?timeout ( c f ) dup 0> if 2drop true exit then  \ ? break
+       if drop \ ." to:"
+         \ no error in execute mode
+         __ $CRNLok count 0 self rx-buf compare$ 0=
+         if ( ." +") false self noprompt exit then
+         \ no error in compile mode
+         __ $blCRNL count 0 self rx-buf compare$ 0= if ( ." ]+") false exit then
+         \ error thrown by ' and ['] 
+         s"  ?" 0 self rx-buf compare$ 0= if ( ." -") cr true exit then
+         \ other errors
+         __ $?CRNL count 0 self rx-buf compare$ 0= if ( ." -") true exit then
+         \ error condition after QUIT or ABORT
+         s"  "  0 self rx-buf compare$ 0= if ." ?" cr true exit then
+         \ error condition after ABORT" ...."
+         cr true exit
+      then
+       ( c ) dup self rx-buf append  self ?emit
+     again
+;
+
+terminal plugin !
+terminal upper-case on
+s" mcu:target:lib" terminal path !
+\ ------------------------------------------------------------------------------
+\ Last Revision: MM-171110 0.6.3 , default path added
+\                MM-161230 break handling added
+\                MM-161229 noprompt added
+
+\\
+
+
+MSP430 CamelForth v0.5  22 Dec 2013
+ 
+ok #i TEST  Uploading: ./TEST
+\ e4thcom test file for target protocol evaluation                     MM-150211
+
+\ Target response in interpret mode if no error occures:
+
+BASE|> ^0D^0Aok 
+
+DROP|> ^0D^0Aok 
+
+CR|> ^0D^0A^0D^0Aok 
+
+' BASE DROP|> ^0D^0Aok 
+
+\ Target response in interpret mode if an error occures:
+
+' X|> ?
+
+X|> X?^0D^0A
+
+QUIT|> 
+
+ABORT|> 
+
+DROP|> ^0D^0Aok 
+
+: X ( -- )  -1 ABORT" Error" ;|> ^0D^0Aok 
+
+X|> Error
+
+\ Target response in compile mode if no error occures:
+
+: Y ( -- )|> ^0D^0A
+    BASE @ DROP|> ^0D^0A
+;|> ^0D^0Aok 
+
+\ Target response in compile mode if an error occures:
+
+: Y ( -- )|> ^0D^0A
+    ['] X EXECUTE|> ^0D^0A
+    ['] x EXECUTE|> ?
+    x|> x?^0D^0A
+    ['] X execute|> execute?^0D^0A
+;|> ^0D^0Aok 
+
+\\
+Closing: ./TEST  ok 
+

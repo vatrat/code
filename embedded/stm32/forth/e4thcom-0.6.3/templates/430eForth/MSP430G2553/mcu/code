@@ -1,0 +1,27 @@
+\ code   (Cross-) Assembler Interface for 430eForth                   MM-170119
+\
+\ Requires: * 430eForth v4.3 on a MSP430G2553 launchpad
+\           * e4thcom-0.6.1 -t 430eforth-xas
+\           * 38 bytes of flash memory
+\           * code-begin to create headerless code
+
+BASE @ DECIMAL
+
+: code ( <name> -- )
+  \ Start a (cross-)assembler definition.
+    \ TOKEN SNAME ;   \ TOKEN and SNAME are defined headerless in 430eForth,
+                      \ we can pick up their execution tokens from the word :
+    [ ' : 2 2* + DUP @ ( xt(TOKEN) , 2 + @ ( xt(SNAME) , ] ;
+
+: end-code ( -- )
+  \ End a (cross-)assembler definition.
+    \ OVERT ;         \ OVERT is defined headerless in 430eForth,
+                      \ we can pick up its execution token from the word ;
+    [ ' ; 5 2* + @ ( XT(OVERT) , ] ;
+
+BASE !
+
+\ Syntax:  code name
+\            ..........
+\          end-code
+

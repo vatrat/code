@@ -1,0 +1,429 @@
+e4thcom: 0.6.3  \ msp430xas.efx                                       MM-150221
+\ -----------------------------------------------------------------------------
+\                (C) 2015-2016 manfred.mahlow@forth-ev.de
+\
+\ This is the MSP430 family cross-assembler core for the e4thcom terminal. It
+\ was derived from the MSP430 family assembler aux430ass.f from noforth1210
+\ (enclosed at the end of this file)
+\
+\ The CPU Register usage depends on the target forth system and must be defined
+\ before loading this file.
+\
+\ The cross-assembler depends on the following target forth specific words,
+\ which must be defined before loading this file:
+\
+\ x! ( h: x a -- )   Store x at address a in the target dictionay.
+\
+\ x, ( h: x -- )     Compile x at the targets next free dictionary address.
+\
+\ xhere ( h: -- a )  Return the targets next free dictionary address.
+\
+\ xc@ ( h: a -- c )  Read a byte from target address a to the host stack.
+\                    ^^^ is nolonger needed MM-160411
+
+\ MSP430 family cross-assembler definitions derived from noforth1210:
+\ -----------------------------------------------------------------------------
+
+forth definitions   \ MM-160412
+
+warning off  \  change to on for asm debugging                           \ + MM
+
+hex   \ until the end
+
+{ === moved to mfp forth.lib    \ - MM-150221
+
+: ?input 0= abort"  End of input " ;
+
+: ch   char state @ if [compile] literal then ; immediate              \
+
+: bl-word ( -- countedstring )        \ does refill
+  begin  bl word dup c@ 0=
+  while drop refill ?input
+  repeat ;
+
+\ ----- multiple definitions
+' constant value definer
+: multi ( <def-word> -- )  ' to definer
+   begin    bl-word count  over c@ ch \ <>
+   while    evaluate    definer execute
+   repeat   2drop ;
+
+ === }
+
+\ ----- adressing
+: ?adr  abort"  Addressing error " ;
+: ?reg   0F u> abort"  Register expected " ;
+
+\ --------------------------
+\ SmartTerm asm definitions                                             \ + MM
+  terminal xas definitions  \ MM-160813
+\ --------------------------
+
+{ CPU Register usage is target specific                                 \ - MM   
+
+multi constant
+  00 pc   01 rp    02 sr   03 cg    04 sp   05 ip    06 w    07 tos
+  00 PC   01 RP    02 SR   03 CG    04 SP   05 IP    06 W    07 TOS  \\
+
+multi constant
+  08 index   09 limit   0A x   0B y   0C q   0D t   0E r14   0F r15
+  08 INDEX   09 LIMIT   0A X   0B Y   0C Q   0D T   0E R14   0F R15  \\
+
+}
+
+multi constant
+  -40 .b  -1 x)    -2 )    -3 )+    -4 #    -5 -)   \\
+
+            : #4  sr ) ;  : #8  sr )+ ;   : &   sr x) ;
+: #0  cg ;  : #2  cg ) ;  : #-1 cg )+ ;   : #1  0 cg x) ; \ no extension!
+
+\ 0 -paren  ^^^ removed
+multi value  4 a.pos    8 r.pos
+  0 d.ext    0 d.ext?   0 s.ext   0 s.ext?    \\
+\ a.pos = location of addresmode in opcode. (bit#0)
+\ r.pos = location of register# in opcode.  (bit#0)
+
+: dst ( opcode -- opcode )
+   >r
+   s>d 0=      if 0 then                                \ reg.direct
+   dup ) =     if drop 0 swap x) then                   \  reg )  ->  0 reg x)
+   dup x) =    if rot to d.ext  true to d.ext? then     \ index>extension
+   -2 over <   if negate a.pos lshift  r> or swap
+                  dup ?reg r.pos lshift or  exit then   \ reg  and   reg x)
+   true ?adr ;
+
+: src ( opcode -- opcode )
+   >r
+   s>d 0=      if 0 then                                   \ reg.direct
+   dup x) =    if rot to s.ext over cg <>                  \ ext ?
+                  if true to s.ext? then then              \ not for #1
+   dup # =     if drop to s.ext true to s.ext? pc )+ then  \ xxxx #
+   -4 over <   if negate a.pos lshift  r> or swap
+                  dup ?reg r.pos lshift or   exit then     \ all addrmodes
+   true ?adr ;
+
+: assem, ( opcode -- )  x,
+   s.ext?  if s.ext x, then   d.ext?  if d.ext x, then ;
+
+: no.ext    false to s.ext?  false to d.ext?  ;
+: .b?   over .b = if swap negate or then ;
+
+\ MM-150110
+\ : -)?   >r dup -) = if  drop -2 swap x) here else 0 then to -paren r> ;
+\ ^^^
+\ : -)?   >r dup -) = if  drop -2 swap x) xhere else 0 then to -paren r> ;
+
+0 value 'sub \ ^^^ added for -)
+: -)?        \ ^^^ renewed
+    over -) =
+    if  nip >r r@ 40 and swap >r    \ byte or cell?
+        if  #1 else #2
+        then
+        r@
+        'sub execute                \ insert decrement instruction
+        0 r> x) r>                  \ followed by main instruction
+    then ;
+
+
+\ MM-150110
+\ : -paren? -paren if -paren c@ 0F and ( reg ) 8320 or ( #2 sub ) x, then ;
+\ ^^^ removed
+\ : -paren? -paren if -paren xc@ 0F and ( reg ) 8320 or ( #2 sub ) x, then ;
+
+\ ----- mnemocodes
+: a&r to r.pos to a.pos ;
+: 1op    create , does> @ .b? no.ext   4 0 a&r src   assem, ;
+: 2op    create , does> @ .b? -)? no.ext
+\ MM-160411
+\        7 0 a&r dst   4 8 a&r src    assem, -paren? ;
+         7 0 a&r dst   4 8 a&r src    assem, ( -paren? ^^^ ) ;
+
+multi 1op      1000 rrc    1080 swpb   1100 rra
+   1180 sxt    1200 push   1280 call      \\
+: reti 1300 x, ;
+: ret  4130 x, ;  \ rp )+ pc mov    \ MM-150228
+multi 2op      4000 mov    5000 add    6000 addc
+   7000 subc   8000 sub    9000 cmp    A000 dadd
+   B000 bit    C000 bic    D000 bis
+   E000 xor>   E000 bix    F000 and>   F000 bia   \\
+
+' sub to 'sub  \ ^^^ added for -)
+
+\ Macros
+\ : next    nxt pc mov  ;  \ for noforth
+\ : next ( -- ) \ compile jump to high level forth     for 4e4th  MM-150212
+\    4536 x, 4630 x, ;
+\ : next s" next" xeval ;
+
+: setc  #1 sr bis ;   : clrc  #1 sr bic ;
+: eint  #8 sr bis ;   : dint  #8 sr bic ;
+
+\ ----- assembler conditionals
+multi constant
+   2000 =?     2400 <>?      2800 cs?    2C00 cc?
+   2000 0=?    2400 0<>?
+   3000 pos?   3400 >?       3800 <eq?   3C00 never
+   2800 u<eq?  2C00 u>?       3FF <offset>
+   0055 code-id   0066 if,id  0077 begin,id   \\
+
+\ <offset>     = masker for offset -> then and until
+\ never        = cond for always.jump -> ahead, again
+\              = masker for condition -> see ?cond
+
+: ?pair ( x y -- )   - abort"  Conditionals not paired. " ;
+: ?cond ( cond -- )  never invert and        \ niet waterdicht
+                     abort"  Condition needed. " ;
+
+\ : if, ( cond -- ifloc ifcond ) dup ?cond if,id  or here swap  2 allot ; \ ~ MM
+  : if, ( cond -- ifloc ifcond ) dup ?cond if,id  or xhere swap FFFF x, ;
+
+\ : begin, ( -- beginloc begin,id )  here begin,id ;                      \ ~ MM
+  : begin, ( -- beginloc begin,id )  xhere begin,id ;
+
+: then, ( ifloc ifcond -- )
+   dup   never invert and  if,id ?pair
+   never and   dup ?cond   >r
+\  here over 2 + - 2/ <offset> and  r> or    swap x! ;                    \ ~ MM
+   xhere over 2 + - 2/ <offset> and  r> or    swap x! ;
+
+: until, ( beginloc begin,id cond -- )
+   dup ?cond   >r     begin,id ?pair
+\  here 2 + - 2/ <offset> and    r> or    x, ;                            \ ~ MM
+   xhere 2 + - 2/ <offset> and    r> or    x, ;
+
+: again,    never until, ;
+: else,     never if, 2swap then, ;
+: while,    if, 2swap ;
+: repeat,   never until, then, ;
+: ahead,    never if, ;
+
+\ : jmp       begin,id again, ;  \ jump, relative addr in opcode          \ ~ MM
+  : jmp ( a -- ) \ Jump to addr a
+        dup xhere - 2/ -1FF 201 ( -511 513 ) within
+        if \ ." short jmp "   \ jump, relative addr in opcode
+           begin,id again,
+       else \ ." long jmp "   \ jump, absolute addr
+           # pc mov
+       then ;
+
+\ SmartTerm asm enable
+  terminal xas enable   \ MM-160813
+
+\ Last Revision: MM-171031 0.6.3
+\                MM-161224 e4thcom: 0.6.1
+\                MM-161014 e4thcom: 0.6.0
+\                MM-161010 e4thcom: 0.5.5
+\                MM-160813 updated to 0.5.4 (SmartTerm asm --> terminal xas )
+\                MM-160412 backported to e4thcom 0.5.3
+\                          \forth commented out
+\                MM-160411 update for e4thcom 0.6.0
+\                          updates/bugfixes applied from file auxasmnew.f
+\                          that was forwarded from A. Nijhof on 160410:
+\                          from 12feb2016 :  BIX BIA 0=? 0<>?  added
+\                          from 10apr2016 :  -) is repaired, see tags ^^^
+\                          xc@ is no longer required now. MM-160411   
+\                MM-160327 changed for 0.6.0
+\                          forth replaced with SmartTerm \forth
+\                MM-150406 separate control flow stack ( id-stack ) removed, no
+\                          no longer required
+\                MM-150315 equ moved to forth.lib
+\                MM-150228 ret added
+\                MM-150221 target specific code moved to separate loader named
+\                          <target>.efx
+\                MM-150213 4e4th-0.5.efx derived from noforth-0.5.efx
+\                MM-150201 export added
+\                MM-150129 label and LB01 ... LB05 added
+\                MM-150114 MCU: moved to SmartTerm/e4thcom-0.5.mf
+\                MM-150112 interface definitions added
+\                          jmp redefined for rel and abs addr jumps
+\                MM-150105 Upper case cpu register names added
+\                MM-141226 MCU: added
+\                MM-141214 xx yy zz added for noForth V/C , file name changed
+\                          from 430Xass-e4thcom-04.mf to nf430xas-efc-04.mf
+\                MM-141007 equ redefined , -1 to no-asm
+\                MM-140928 equ added
+\                MM-140905 All stuff deleted that was not necessary vor the
+\                          cross-assembler usage.
+
+\\ aux430ass.f from noForth 1210 :
+\ -----------------------------------------------------------------------------
+\ an -- ma 28aug2012 -- 430 hulpassembler
+\ an -- za 12jan2012 -- X@ removed, see -PAREN \ (host) Endian independent
+
+\ This 430 assembler for a 32 bit forth produces input code for noForth.
+\ See the example at the end of this file.
+
+vocabulary noforth
+noforth also definitions
+
+ hex   \ until the end
+
+: ?input 0= abort"  End of input " ;
+: CH   char state @ if postpone literal then ; immediate
+: UPC) ( adr -- ) \ make ch at adr uppercast
+  dup c@ dup ch a ch { within if bl xor swap c! else 2drop then ;
+: UPPER ( a n -- ) over + swap ?do i upc) loop ;
+: BL-WORD ( -- countedstring )        \ does refill
+  begin  bl word dup c@ 0=
+  while drop refill ?input
+  repeat ;
+
+\ ----- commentaarbegrenzers -----
+: TEXT,   ( a n -- )  here swap dup allot move ;
+: SAME? ( cstr1 cstr2 -- ? ) over c@ 1+ tuck compare 0= ;
+: IGNORE ( <startstring> <endstring> -- )
+  create immediate bl word  dup count upper dup c@ 1+ text, align
+  does> begin bl-word dup count dup ?input
+           upper over same?
+        until drop ;
+IGNORE <---- ---->  \ comment marker
+
+\ ----- multiple definitions
+' constant value DEFINER
+: MULTI ( <def-word> -- )  ' to definer
+   begin    bl-word count  over c@ ch \ <>
+   while    evaluate    definer execute
+   repeat   2drop ;
+
+\ operators for 16 bit data, show what happens
+: X!   2dup cr swap FFFF and 2B .r  ." >"    .  \ show
+       over 8 rshift over 1+ c! c! ;            \ do
+: X,   dup cr here 20 .r    ." : "   FFFF and . \ show
+       dup c, 8 rshift c, ;                     \ do
+
+
+\ ----- adressing
+: ?ADR  abort"  Addressing error " ;
+: ?REG   0F u> abort"  Register expected " ;
+
+multi constant
+  00 PC   01 RP    02 SR   03 CG    04 SP   05 IP    06 W    07 TOS
+  08 DAY  09 MOON  0A SUN  0B RAIN  0C SNOW 0D FOG   0E DOX  0F NXT
+  -40 .B  -1 X)    -2 )    -3 )+    -4 #    -5 -)   \\
+
+            : #4  sr ) ;  : #8  sr )+ ;   : &   sr x) ;
+: #0  cg ;  : #2  cg ) ;  : #-1 cg )+ ;   : #1  0 cg x) ; \ no extension!
+
+multi value  4 A.POS    8 R.POS   0 -PAREN
+  0 D.EXT    0 D.EXT?   0 S.EXT   0 S.EXT?    \\
+\ a.pos = location of addresmode in opcode. (bit#0)
+\ r.pos = location of register# in opcode.  (bit#0)
+
+: DST ( opcode -- opcode )
+   >r
+   s>d 0=      if 0 then                                \ reg.direct
+   dup ) =     if drop 0 swap x) then                   \  reg )  ->  0 reg x)
+   dup x) =    if rot to d.ext  true to d.ext? then     \ index>extension
+   -2 over <   if negate a.pos lshift  r> or swap
+                  dup ?reg r.pos lshift or  exit then   \ reg  and   reg x)
+   true ?adr ;
+
+: SRC ( opcode -- opcode )
+   >r
+   s>d 0=      if 0 then                                   \ reg.direct
+   dup x) =    if rot to s.ext  over cg <>                 \ ext ?
+                  if true to s.ext? then then              \ not for #1
+   dup # =     if drop to s.ext  true to s.ext? pc )+ then \ xxxx #
+   -4 over <   if negate a.pos lshift  r> or swap
+                  dup ?reg r.pos lshift or   exit then     \ all addrmodes
+   true ?adr ;
+
+: ASSEM, ( opcode -- )  x,
+   s.ext?  if s.ext x, then   d.ext?  if d.ext x, then ;
+
+: NO.EXT    false to s.ext?  false to d.ext?  ;
+: .B?   over .b = if swap negate or then ;
+: -)?   >r dup -) = if  drop -2 swap x) here else 0 then to -paren r> ;
+: -PAREN? -paren if -paren c@ 0F and ( reg ) 8320 or ( #2 sub ) x, then ;
+\ ----- mnemocodes
+: A&R to r.pos to a.pos ;
+: 1OP    create , does> @ .b? no.ext   4 0 a&r src   assem, ;
+: 2OP    create , does> @ .b? -)? no.ext
+         7 0 a&r dst   4 8 a&r src    assem, -paren? ;
+
+multi 1op      1000 RRC    1080 SWPB   1100 RRA
+   1180 SXT    1200 PUSH   1280 CALL      \\
+: RETI 1300 x, ;
+multi 2op      4000 MOV    5000 ADD    6000 ADDC
+   7000 SUBC   8000 SUB    9000 CMP    A000 DADD
+   B000 BIT    C000 BIC    D000 BIS    E000 XOR>   F000 AND>   \\
+
+\ Macros
+: NEXT    nxt pc mov  ;
+: SETC  #1 sr bis ;   : CLRC  #1 sr bic ;
+: EINT  #8 sr bis ;   : DINT  #8 sr bic ;
+
+\ ----- assembler conditionals
+multi constant
+   2000 =?     2400 <>?      2800 CS?    2C00 CC?
+   3000 POS?   3400 >?       3800 <EQ?   3C00 NEVER
+   2800 U<EQ?  2C00 U>?       3FF <OFFSET>
+   0055 CODE-ID   0066 IF,ID  0077 BEGIN,ID   \\
+
+\ <offset>     = masker for offset -> then and until
+\ never        = cond for always.jump -> ahead, again
+\              = masker for condition -> see ?cond
+
+: ?PAIR ( x y -- )   - abort"  Conditionals not paired. " ;
+: ?COND ( cond -- )  never invert and        \ niet waterdicht
+                     abort"  Condition needed. " ;
+
+: IF, ( cond -- ifloc ifcond ) dup ?cond if,id  or here swap  2 allot ;
+: BEGIN, ( -- beginloc begin,id )  here begin,id ;
+: THEN, ( ifloc ifcond -- )
+   dup   never invert and  if,id ?pair
+   never and   dup ?cond   >r
+   here over 2 + - 2/ <offset> and  r> or    swap x! ;
+: UNTIL, ( beginloc begin,id cond -- )
+   dup ?cond   >r     begin,id ?pair
+   here 2 + - 2/ <offset> and    r> or    x, ;
+: AGAIN,    never until, ;
+: ELSE,     never if, 2swap then, ;
+: WHILE,    if, 2swap ;
+: REPEAT,   never until, then, ;
+: AHEAD,    never if, ;
+: JMP       begin,id again, ;  \ jump, relative addr in opcode
+
+: NOCODE
+  here bl-word dup c@ 1+ text, align
+  here code-id ;
+: END-CODE ( here1 here2 code-id -- )
+   code-id ?pair
+   cr cr ." CODE " swap count type cr
+   here swap ?do
+     i @ FFFF and space u. ." , "
+     i 0F and 0= if cr then
+          2 +loop cr ." END-CODE " cr cr ;
+
+forth definitions
+: CODE nocode ;
+noforth
+create RUBBISH
+cr .( ----- aux430ass.f loaded ----- )
+
+<----  example: include this text
+hex
+code MOVE
+   sp )+ w mov  sp )+ sun mov
+   #0 tos cmp
+   <>? if,   w sun cmp
+   u>? if,   tos sun add  tos w add
+      begin,  #1 sun sub  #1 w sub
+         sun ) w ) .b mov  #1 tos sub
+	  =? until,
+   else,
+      begin,  sun )+ w ) .b mov
+         #1 w add  #1 tos sub
+      =? until,
+   then,
+   then,   sp )+ tos mov   next end-code
+
+----- and this will come out:
+ CODE MOVE
+4436 , 443A , 9307 , 2410 , 960A , 2C09 , 570A ,
+5706 , 831A , 8316 , 4AE6 , 0 , 8317 , 23FA , 3C05 ,
+4AF6 , 0 , 5316 , 8317 , 23FB , 4437 , 4F00 ,
+END-CODE
+---->
+\ <><>
+

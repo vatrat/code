@@ -1,0 +1,62 @@
+\ e4thcom: MSP430 Cross Assembler Syntax Examples for 430eForth        MM-170119
+\ Requires: * 430eForth v4.3 on a MSP430G2553 launchpad
+\           * e4thcom-0.6.1 -t 430eforth-xas
+
+
+#require code
+
+\xas MCU: MSP430G2553
+
+\ Some macros:
+
+\xas : drop, ( -- ) sp )+ tos mov ;
+
+\xas : dup, ( -- ) #2 sp sub  tos 0 sp x) mov ;
+
+\xas : push, ( x -- ) dup, tos mov ;
+
+\ Using the macros:
+
+code base@ ( -- x )
+     x[ BASE ] & push, next end-code
+
+code base! ( x -- )
+     tos x[ BASE ] & mov  drop, next end-code
+
+\ Toggling a port bit:
+
+code P1.0~ ( -- )
+     BIT0 # P1OUT & .b bix next end-code
+
+\ Exporting port and bit identifiers to the target:
+
+\res export P1OUT BIT0
+
+
+\ Using labels:
+
+code min ( n1 n2 -- n1|n2 )
+     sp )+ w mov tos w cmp  label LB01  >? if, w tos mov then, next
+     end-code
+
+code max ( n1 n2 -- n1|n2 )
+     sp )+ w mov w tos cmp  LB01 jmp  end-code
+
+
+\ Using subroutines :
+
+#require code-begin
+
+code-begin
+\ A subroutine to toggle the red LED on the LauchPad (see also P1.0~).
+  label LB01                \ CP @ is assigned to LB01 of the cross-assembler
+  BIT0 # P1OUT & .b bix     \ code to toggle BIT0 of P1OUT
+  ret                       \ replace with reti in an interrupt service routine
+end-code
+
+code ~LED1 ( -- )
+     LB01 # call  next
+end-code
+
+\ Last revision: MM-170120
+

@@ -1,0 +1,14 @@
+
+\ noForth V : get-order  from 'noforth v more standard words.f'
+
+also extra definitions inside
+
+: GET-ORDER     ( -- wids.. n )
+   v0
+   dup vp - dup >r                      \ n v0 n
+   0 ?do   1- dup c@ swap loop drop r> ;
+
+previous
+
+\ MM-161003
+

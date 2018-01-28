@@ -1,0 +1,15 @@
+
+\ noForth V : show-wordlist                                           MM-151019
+
+#require get-order
+#require set-order
+
+also extra definitions
+
+: show-wordlist ( wid -- )
+  >r get-order r> 1 set-order words set-order ;
+
+previous
+
+\ MM-161003
+

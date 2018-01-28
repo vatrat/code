@@ -1,0 +1,6 @@
+\ amforth : compile,                                                  MM-151019
+
+forth definitions
+
+: compile, ( xt -- ) , ;
+

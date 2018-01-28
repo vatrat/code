@@ -1,0 +1,11 @@
+
+\ set-current   from 'noforth v more standard words.f'
+
+also extra definitions inside
+
+: set-current ( wid -- )   v0 c! ;
+
+previous
+
+\ MM-161003
+

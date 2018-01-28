@@ -1,0 +1,18 @@
+
+\ from 'noforth v more standard words.f'
+
+also extra definitions inside 
+
+: SEARCH-WORDLIST ( adr len wid -- 0 | xt 1 | xt -1 )
+   >r
+   >fhere
+   v0 cell+   dup 1-
+   r> over c!           \ mini search-order with 1 wid
+   find)
+   dup ?exit nip ;
+
+previous 
+
+\ MM-161003
+
+

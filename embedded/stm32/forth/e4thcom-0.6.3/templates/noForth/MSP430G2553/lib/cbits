@@ -1,0 +1,9 @@
+\ noforth:  cbits                                                      MM-140817
+hex
+
+: cbits ( c -- ) \ Show the bits of the byte c.
+  cr ." BIT7     BIT6     BIT5     BIT4     BIT3     BIT2     BIT1     BIT0"           
+  cr 8 0 do dup 80 and 0 > abs 3 .r 6 spaces 2* loop drop cr ;
+
+\\ MM-141119
+

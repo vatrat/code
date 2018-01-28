@@ -1,0 +1,63 @@
+e4thcom: 0.6.3 \ stm8ef.efc : plugin for stm8ef targets               MM-170912
+\ ------------------------------------------------------------------------------
+\                   (C) 2017 manfred.mahlow@forth-ev.de
+\
+\      Tested with stm8eForth > 2.2.14 170916 MINDEV.ihx and SWIMCOM.ihx.
+\ ------------------------------------------------------------------------------
+cr
+<brown ." * Loading Plugin for stm8eForth > 2.2.14 (stm8ef.efc)" normal>
+cr
+."    Use the " <bright ." TAB " normal> ." key to cancel an upload process."
+
+here  07 c, ^NL c, 0 c, constant $^BEL^NL
+
+__e4thcom definitions decimal
+
+  m: rx.1w ( c oid -- )
+  \ Modified terminal rx-handler for stm8eforth (supports 1-wire also). M-170910
+     \ Terminal display output formatting may be added here.
+       dup ^CR = if drop exit then  \ ignore CR (required for 1-wire connection)
+       self rx.1 ;                  \ default rx-handler
+
+terminal ' rx.1w terminal rx-handler !
+
+\ Protocol handler for STM8EF with NL/BEL support enabled.
+  :noname ( oid -- flag ) \ stm8ef
+     \ Wait while the target evalutes a line of uploaded source code. Return 
+     \ a true flag on error or if [Ctrl][B] was pressed. Return a false flag
+     \ otherwise.
+     >self  self rx-buf erase  white bright letters
+     begin
+       self rx?break ( c f ) if drop true exit then  \ exit on break
+       ( c ) dup self rx-buf append
+       dup 7 = over ^CR = or
+       if         
+         drop 
+       else
+         ( c ) dup self ?emit  ^NL =
+         if
+           \ ' ok^NL' , no error occured
+             s" ok" -1 self rx-buf compare$ 0= if false exit then
+           \ ' OK^NL' , no error occured
+             s" OK" -1 self rx-buf compare$ 0= if false exit then
+           \ '^BEL^NL' , an error occured
+             $^BEL^NL 2 0 self rx-buf compare$ 0= if true exit then
+           \ reDef <name>^NL
+         then   
+       then
+     again ;
+
+terminal plugin !
+terminal upper-case on
+s" mcu:target:lib" terminal path !
+warning off
+ 
+\ ------------------------------------------------------------------------------
+\ Last Revision: MM-171110 default path added
+\                MM-171109 uppercase from off to on
+\                MM-171102 0.6.3
+\                MM-170916 Adapted to latest protocol change. 
+\                          No error: ' ok^NL' in nterpret mode
+\                                    ' OK^NL' in compile mode
+\                          On error: '^BEL^NL'
+

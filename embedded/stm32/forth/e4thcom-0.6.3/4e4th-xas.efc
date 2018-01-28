@@ -1,0 +1,70 @@
+e4thcom: 0.6.3 \ 4e4th-xas.efc : plugin with noforth cross assembler   MM-150221
+\ 
+\                   (C) 2016 manfred.mahlow@forth-ev.de
+\
+\ Loads the plugin and a MSP430 cross-assembler from noforth.
+\
+
+require 4e4th.efc
+
+cr cr <brown ." * Loading MSP430 Cross-Assembler (4e4th-xas.efc)" normal>
+
+terminal xas definitions hex
+
+\ The cross assembler interface for 4e4th :
+
+s" ihere" xas.xhere !
+s" i!"    xas.x!    !
+s" i,"    xas.x,    !
+s" c@"    xas.xc@   !
+s" @"     xas.x@    !
+
+\ CPU Register usage in 4e4th :
+
+multi constant
+  00 pc   01 rp    02 sr   03 cg    04 sp   05 ip    06 w    07 tos
+  00 PC   01 RP    02 SR   03 CG    04 SP   05 IP    06 W    07 TOS  \\
+
+multi constant
+  08 index   09 limit   0A x   0B y   0C q   0D t   0E r14   0F r15
+  08 INDEX   09 LIMIT   0A X   0B Y   0C Q   0D T   0E R14   0F R15  \\
+
+cr .(    MCU:4e4th system registers: )
+cr .(      00:PC  01|SP:RP  02:SR  03:CG  04:SP  05:IP  07 TOS  08:INDEX  09 LIMIT )
+cr .(    Locally used registers:            Unused registers: )
+cr .(      06:W  10:X  11:Y  12:Q  13:T       14:R14  15:R15  )
+cr
+
+include msp430xas.efx  \ the (target independend) MSP430 cross-assembler core
+
+
+terminal xas definitions hex
+
+: next ( -- ) ip )+ w  mov  w  )+ pc mov ;
+
+forth definitions decimal
+
+cr <brown ." * Loading MSP430 Cross-Disassembler (msp430xdas.efx)"
+   normal>
+
+include msp430xdas.efx  \ the MSP430 cross disassembler derived from noForth
+
+\ MM-161227  Register Names for 4e4th
+
+terminal xdas
+
+\  R0  R1  R2  R3  R4  R5  R6  R7  R8  R9  R10 R11 R12 R13 R14 R15
+s" pc  rp  sr  cg  sp  ip  w   tos R8  R9  R10 R11 R12 R13 R14 R15 " regs !
+
+forth definitions decimal
+
+\ Last Revision: MM-171110 0.6.3
+\                MM-161227 cross disassembler added
+\                MM-160919 Version check added
+\                MM-160814 modified for e4thcom-0.5.4
+\                MM-151112 renamed from 4e4th-MSP430G2553.efc to 4e4th-xas.efc
+\                MM-151011 xWords moved to e4thcom...mf, interface words added
+\                MM-151010 HEX deleted in most xWords, no longer required
+\                          x$s removed
+\                MM-151004 file renamed from 4e4th.efx to 4e4th-MSP430G2553.efc
+

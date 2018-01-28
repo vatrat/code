@@ -1,0 +1,10 @@
+\ cbits                                                                MM-140921
+BASE @ HEX
+
+: cbits ( c-addr -- ) \ Show the bits of the byte at address c-addr.
+        CR ." BIT7     BIT6     BIT5     BIT4     "
+           ." BIT3     BIT2     BIT1     BIT0"
+        CR C@ 8 0 DO 2 SPACES DUP 80 AND 0 > ABS . 5 SPACES 2* LOOP DROP ;
+
+BASE !
+

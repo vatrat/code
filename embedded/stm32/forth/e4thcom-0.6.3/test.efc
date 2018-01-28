@@ -1,0 +1,28 @@
+\ test.efc : e4thcom plugin for target protocol evaluation             MM-150211
+\
+cr .( * Loading Plugin test.efc for target protocol evaluation.)
+cr .(    * The e4thcom directory must be the current working directory !)
+cr .(    * Enter  #i test [Enter]  to test the targets response.)
+cr
+
+__e4thcom definitions decimal
+
+:noname ( oid -- flag )
+   \ Wait while the target evaluates a line of uploaded code. Return a true
+   \ flag on error, a false flag otherwise.
+   >self  self rx-buf erase  1000 self timeout !  white bright letters
+   ." |>"
+   begin
+     self rx?timeout ( c f ) if drop cr false exit then
+     ( c ) dup self rx-buf append
+     ( c ) dup bl <
+     if \ c = control char
+       ( c ) [char] ^ emit base @ swap hex s>d <# # #s #> type base !
+     else
+       self ?emit
+     then
+   again ;
+
+terminal plugin !
+
+\ Last Revision: MM-161220 derived from e4thcom-0.5.3-udp

@@ -1,0 +1,70 @@
+\ DS1821 Digital Thermometer and Thermostat with 1-Wire Interface     MM-141222
+\
+\ Requires: * noForth-v on a MSP430G2553 launchpad
+\           * e4thcom-0.6.1 -t noforth-xas
+\
+
+#require ow
+
+ow definitions hex
+
+: t/r ( c -- c' ) \ Transmit and receive one byte to/from the 1-Wire Bus.
+    8 0 do ow slot ( pause ) loop ;
+
+: tx ( c -- ) \ Send one byte to the 1-Wire Bus.
+    ow t/r drop ;
+
+: rx ( -- c ) \ Receive one byte from the 1-Wire Bus.
+    0FF ow t/r ;
+
+: ?reset ( -- )
+  \ Two calls to owreset may be required to detect a device after a COLD start,
+  \ see the definition of owreset.
+    ow reset if exit then ow reset 0= ?abort ;
+
+: c@ ( a -- c' )
+  \ Send an addr byte a to 1-Wire Bus and read a data byte back.
+    ow ?reset ow tx ow rx ;
+
+: c! ( c a -- )
+  \ Send an addr and data byte to the 1-Wire Bus.
+    ow ?reset ow tx ow tx ;
+
+forth definitions
+
+voc ds1821  ds1821 definitions
+
+: read.status ( -- c ) 0AC ow c@ ;
+
+: write.status ( c -- ) 0C ow c! ;
+
+: start ( -- ) 0EE ow ?reset ow tx ;
+: stop  ( -- ) 022 ow ?reset ow tx ;
+
+: 1shot ( -- ) ds1821 read.status 01 or ds1821 write.status ;
+: cont  ( -- ) ds1821 read.status 0FE and ds1821 write.status ;
+
+: read ( -- c ) 0AA ow c@  base @ >r decimal . r> base ! ;
+
+: scan ( -- ) \ Read the temperature every second.
+    ds1821 start DM 500 ms 
+    begin ds1821 read DM 1000 ms key? until key drop ;
+
+forth definitions
+
+#require cbits
+
+ds1821 definitions
+
+: ? ( -- ) \ Show the DS1821 Status Register
+  cr
+  ." DS1821 Status Register:" ds1821 read.status cbits
+  ."  DONE      1       NVB      THF      TLF      T/R      POL     1SHOT    "
+  cr ;
+
+forth definitions
+
+\index  ow words  ds1821  ds1821 words
+
+
+

@@ -1,0 +1,111 @@
+\ voc : A vocabulary prefix for amForth-5.1                            MM-160205
+\
+\ Vocabulary prefixes help to structure the dictionary, make it more readable.
+\
+\ A vocabulary prefix is an immediate word. It reads the next word from the 
+\ input stream (waits for it), finds it in its private wordlist and then 
+\ executes or compiles it.
+\
+\ Usage: #require voc      \ loads this file
+\
+\        voc name          \ creates a new vocabulary prefix
+\
+\        name definitions  \ makes name (names wordlist) the current compilation
+\                          \ context 
+\
+\ Example:  voc i2c  i2c definitions
+\
+\             variable sid   \ slave id
+\
+\             : start ... ;  \ start an I2C Bus transmission
+\
+\             ...            \ more I2C definitions
+\
+\           forth definitions
+\
+\           i2c words    \ shows all i2c words and stays in the i2c context
+\                        \ entering a name or .. closes the context
+\           i2c start    \ executes/compiles the word start from context i2c    
+\
+\ Requires 151 cells without debugging tools.
+\ ------------------------------------------------------------------------------
+
+marker --reset--
+
+\ variable v1  DP v1 !
+
+#require 2dup
+#require 2drop
+#require compile,
+#require search-wordlist
+#require set-current
+
+forth definitions hex
+
+: bl-word ( "name" -- a u )
+  \ Read the next word from the input stream. If the input stream is exhausted
+  \ display a prompt and wait for input.
+    begin parse-name dup 0= 
+    while 2drop ." +> " begin pause refill until repeat ;
+
+wordlist constant voc-root ( -- wid ) \ the root wordlist inherited by all vocs
+
+variable voc-context ( -- a ) \ points to the wordlist of the last used voc
+                              \ voc-context @ ( -- wid )
+
+: search-voc ( a u wid -- 0 | xt 1 | xt -1 )
+  \ Find a,u in the voc context wid.
+    >r 2dup r> search-wordlist ( adr len wid -- 0 | xt 1 | xt -1 )
+    ?dup 
+    if 
+      2swap 2drop
+    else
+      voc-root search-wordlist ( adr len wid -- 0 | xt 1 | xt -1 )
+    then ;
+
+: dovpx ( "name" -- )
+  \ Read the next word from the input stream, find it in the actual voc context
+  \ and execute (state=0 or word=immediate) or compile it (state<>0).
+    bl-word ( a u )  \ bl-word waits for input
+    voc-context @ search-voc dup 0= -0D and throw
+    1 = state @ 0= or if execute else compile, then ;
+
+: voc ( "name" -- )
+  \ Create a vocabulary prefix. (Generic version, context names are not
+  \ displayed by order and see.
+    wordlist create , immediate
+    does> ( a -- ) @i voc-context ! dovpx ;
+
+voc-root set-current
+
+: definitions ( -- ) voc-context @ set-current ;
+
+forth definitions
+
+\ DP v1 @ - decimal . hex ( cells used for the library extension ) key drop
+
+\ ------------------------------------------------------------------------------
+\ Tools only required for debugging (32 cells in flash):
+\ ------------------------------------------------------------------------------
+
+\ DP v1 !
+
+#require show-wordlist
+
+voc-root set-current  
+
+: words ( -- ) voc-context @ show-wordlist cr voc-root show-wordlist dovpx ;
+
+: .. ; immediate
+
+: ' ( "name" -- xt )
+  \ Return the execution token of the word name from the actual voc context.
+    bl-word voc-context @ search-voc 0= -0D and throw ;
+
+\ DP v1 @ - decimal . hex  ( cells used for debugging tools )  key drop
+
+forth definitions
+
+\ ------------------------------------------------------------------------------
+\ Last Revision: MM-170317
+

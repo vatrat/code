@@ -1,0 +1,80 @@
+e4thcom: 0.6.1 \ stm8ef.efc : plugin for stm8ef targets               MM-170701
+\ ------------------------------------------------------------------------------
+\                   (C) 2017 manfred.mahlow@forth-ev.de
+\
+\            Tested with stm8eForth v2.2 with RS232 connection.
+\ ------------------------------------------------------------------------------
+
+cr
+<brown ." * Loading Plugin for stm8eForth v2.2 (stm8ef.efc)" normal>
+cr
+."    Enter " <bright ." [Ctrl][B] " normal> ." to cancel an upload process."
+
+__e4thcom definitions decimal
+
+  :noname ( oid -- flag ) \ stm8ef
+     \ Wait while the target evalutes a line of uploaded source code. Return 
+     \ a true flag on error or if [Ctrl][B] was pressed. Return a false flag
+     \ otherwise.
+     >self  self rx-buf erase white bright letters
+     begin
+       self rx?break ( c f ) if drop true exit then  \ exit on break
+       ( c ) dup self rx-buf append dup self ?emit ^NL =
+       if
+         s" ?"  -1 self rx-buf compare$ 0= exit
+       then
+     again ;
+
+terminal plugin !
+terminal upper-case off
+warning off
+ 
+\ Last Revision: MM-170701 First version created
+
+\\ ============================================================================
+
+stm8eForth protocol test log :
+
+#i test  Uploading: ./test
+\ e4thcom test file for target protocol evaluation                     MM-170701
+
+\ Target response in interpret mode if no error occures:
+
+base|> ok^0A
+
+drop|> ok^0A
+
+cr|>^0A ok^0A
+
+' base drop|> ok^0A
+
+\ Target response in interpret mode if an error occures:
+
+' x|> x?^0A
+
+x|> x?^0A
+
+quit|> quit?^0A
+
+abort|> abort?^0A
+
+drop|>  underflow ?^0A
+
+: x ( -- )  -1 abort" Error" ;|> ok^0A
+
+x|> Error?^0A
+
+\ Target response in compile mode if no error occures:
+
+: y ( -- )|>^0A
+    base @ drop|>^0A
+;|> ok^0A
+
+\ Target response in compile mode if an error occures:
+
+: y ( -- )|> reDef y^0A
+    ['] x execute ;|> [']?^0A
+
+\\
+Closing: ./test  ok 
+

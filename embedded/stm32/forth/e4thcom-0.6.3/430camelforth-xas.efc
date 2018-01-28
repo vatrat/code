@@ -1,0 +1,82 @@
+e4thcom: 0.6.3 \ 430eforth-xas.efc : plugin with cross assembler       MM-161227
+\ -----------------------------------------------------------------------------
+\                     (C) 2016 manfred.mahlow@forth-ev.de
+\
+\      Tested with MSP430CamelForth v0.5 on a MSP430G2553 LaunchPad.
+\ -----------------------------------------------------------------------------
+
+include 430camelforth.efc   \ the noforth plugin
+
+<brown
+cr  ." * Loading MSP430 Cross-Assembler (430camelforth-xas.efc)
+normal>
+
+warning off
+
+terminal xas definitions hex
+
+\ The cross assembler interface for noForth :
+
+s" IHERE" xas.xhere !
+s" I!"    xas.x!    !   \ store to flash
+s" I,"    xas.x,    !
+s" C@"    xas.xc@   !
+s" @"     xas.x@    !
+
+\ MCU Register usage in noForth :
+
+multi constant
+  00 pc   01 rp    02 sr   03 cg    04 sp   05 ip   06 w   07 tos
+  00 PC   01 RP    02 SR   03 CG    04 SP   05 IP   06 W   07 TOS
+
+  08 index  09 limit  0A x    0B y    0C q    0D t   0E r14  0F r15
+  08 INDEX  09 LIMIT  0A X    0B Y    0C Q    0D T   0E R14  0F R15
+  08 R08    09 R09    0A R10  0B R11  0C R12  0D R13                 \\
+
+cr .(    MCU:CamelForth system registers: )
+cr .(      00:PC  01|SP:RP  02:SR  03:CG  04:SP  05:IP  07 TOS  08:INDEX  09 LIMIT )
+cr .(    Locally used registers:            Unused registers: )
+cr .(      06:W  10:X  11:Y  12:Q  13:T       14:R14  15:R15  )
+
+include msp430xas.efx  \ the (target independend) MSP430 cross-assembler core
+                       \ derived from the noForth assembler
+
+terminal xas definitions hex
+
+\ : next ( -- ) ip )+ pc mov ;   \ Macro $NEXT  (4630)
+: NEXT ( -- ) ip )+ w mov  w )+ pc mov ;  \ Macro NEXT  4536,4630
+
+forth definitions decimal
+
+cr <brown ." * Loading MSP430 Cross-Disassembler (msp430xdas.efx)"
+   normal>
+
+include msp430xdas.efx  \ the MSP430 cross disassembler derived from noForth
+
+\ MM-161221  Register Names for 430eforth
+
+terminal xdas
+
+\  R0  R1  R2  R3  R4  R5  R6  R7  R8  R9  R10 R11 R12 R13 R14 R15
+s" pc  rp  sr  cg  sp  ip  w   tos R8  R9  R10 R11 R12 R13 R14 R15 " regs !
+
+
+forth definitions decimal
+\ ------------------------------------------------------------------------------
+\ Last Revision: MM-171110 0.6.3
+\                MM-161227 derived and adapted from 430eforth-xas.efc
+\                MM-161224 e4thcom: 0.6.1
+\                MM-161221 starting adaptation for 430eforth v4.3
+\                MM-161010 e4thcom: 0.6.0
+\                MM-161010 e4thcom: 0.5.5
+\                MM-160629 __SmartTerm --> terminal
+\                MM-160728 MM-160728 new class prefix: __ 
+\                MM-151112 renamed noforth-MSP430G2553.efc to noforth-xas.efc
+\                MM-151011 xWords moved to e4thcom...mf, interface words added
+\                MM-151010 target words in xWords changed to upper case
+\                MM-151004 renamed noforth.efx to noforth-MSP430G2553.efc
+\                          x$ x$$s moved to noforth.efc
+\                          MCR Register usage hint added
+\                MM-150908 x$ : error check added, base local hex added
+
+

@@ -1,0 +1,47 @@
+\ e4thcom test file for target protocol evaluation                     MM-150211
+
+\ Target response in interpret mode if no error occures:
+
+BASE
+
+DROP
+
+CR
+
+' BASE DROP
+
+\ Target response in interpret mode if an error occures:
+
+\ ' X
+
+\ X
+
+\ QUIT
+
+\ ABORT
+
+DROP
+
+: X ( -- )  -1 ABORT" Error" ;
+
+\ : X QUIT ;
+
+\ X
+
+\ Target response in compile mode if no error occures:
+
+: Y ( -- )
+    BASE @ .
+;
+
+\ Target response in compile mode if an error occures:
+
+: Y ( -- )
+    ['] X EXECUTE
+\    ['] xyz EXECUTE
+     .S xyz
+\    ['] X execute
+;
+
+\\
+

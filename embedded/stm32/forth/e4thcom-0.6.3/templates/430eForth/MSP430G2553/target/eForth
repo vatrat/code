@@ -1,0 +1,195 @@
+\ 430eForth :  eForth  SAVE  COLD  SHIELD                              MM-170127
+\
+\ A Flash Memory Management Tool for 430eForth that makes program development
+\ much more comfortable. Adds the words eForth, SAVE and SHIELD to the eForth
+\ kernel and extends COLD.
+\
+\ Requires:   * 430eForth v4.3 on a MSP430G2553 MCU
+\             * 442/560 Bytes of Flash Memory (without/with) SHIELD
+\
+\ Recommends: * e4thcom-Terminal 0.6.x or later with 430eforth plug-in
+\
+\ eForth ( -- ) Reset DP , CONTEXT , LAST , CP and 'BOOT to initial values that
+\               were defined when loading this extension. Erase the Flash Memory 
+\               from CP to $FP and execute SAVE.
+\
+\ SAVE ( -- )  Save the current eForth state ( DP , CONTEXT , LAST , CP and
+\              'BOOT ... ) to the Flash Information Memory.
+\              Reset 'BOOT if it is pointing to an invalid address ( >= CP ).
+\
+\ COLD ( -- )  Restore the last SAVEd eForth state ( DP , CONTEXT , LAST , CP ,
+\              'BOOT ... ) from Flash Information Memory and erase the Flash
+\              Memory from CP to $FP.
+\
+\ SHIELD ( "name" -- ) Create a word "name" and execute SAVE. "name" restores
+\                      the saved state when executed.
+\
+\ After loading this code, the free Flash Memory starts at the next page-
+\ aligned address ( $D200 with a newly flashed MCU ) and ends at $FP=$FC00.
+\
+\ The Flash Memory page at $FP is used as a temporary buffer by COLD and eForth,
+\ if a memory page needs to be erased partially. In the meantime you can use
+\ the page as a scratch pad.
+\
+\ The Flash Memory page at $FP+$200 is not used by the memory management.
+\
+\ During program development one must not use the Flash Memory above $FP for
+\ program code. After all application modules have been tested and are ready
+\ for final integration one can use that page, as long as COLD and SHIELD are
+\ not executed while CP is >= $FP. Using SAVE , APP! or eForth is still possible.
+\ Finally one can load the tested application on a newly flashed MCU to have
+\ the max. amount of memory available.
+\
+\      (C) 2017 Manfred Mahlow   firstname dot lastname @ forth-ev.de
+\
+\ This program is free software; you can redistribute it and/or modify it under
+\ the terms of the GNU General Public License as published by the Free Software
+\ Foundation; either version 3 of the License, or (at your option) any later
+\ version, see http://www.gnu.org/licenses .
+
+DECIMAL
+
+\ #require $LIT
+' DUMP $4 + @ CONSTANT $LIT ( -- a )  \ a = address of DOLIT
+
+\ #require :NONAME
+: :NONAME ( -- a )
+    CP @
+    [ $LIT , ' .S DUP @ , ] , [ $LIT , 2 + @ , ] ,   \ $NEST
+    $20E @ $214 !                                 \ CONTEX @ LAST !
+    ]                              
+;
+
+\ $214 CONSTANT LAST
+\ $20E CONSTANT CONTEXT
+
+$FC00 CONSTANT $FP  \ addr of a Flash Memory page buffer 
+                    \ is used by .....
+                    \ $FE00 is the last page in the Flash Memory
+                    \ page size is $200
+\ HEX
+
+:NONAME ( -- xt.used? )
+\ : used? ( a -- a u ) \ a = page addr  u = non-erased bytes in page
+    DUP $200 + ( a a1 )
+    BEGIN 1 - DUP C@ $FF = IF 2DUP = ELSE -1 THEN UNTIL ( a ai ) OVER -
+;
+
+:NONAME ( -- xt?efp )
+\ : ?efp ( a -- ) \ Erase full flash page at page aligned addr a . 
+  [ ( xt.used? xt?efp ) OVER , ] 
+  IF ERASE  ." -"  ( print - for a full page erase ) ELSE DROP THEN
+;
+
+:NONAME ( -- xt?epp )
+\ : ?epp ( a u -- ) \ Erase the flash page a partially, starting at a+u
+\ Do nothing if the memory cells are already erased.
+\ 1 - OVER [ ( xt.used? xt?efp xt?epp ) ROT , ] NIP OVER = IF 2DROP EXIT THEN
+    1 - ( a u1 ) OVER [ ( xt.used? xt?efp xt?epp ) ROT , ] ( a u1 a u2 )
+    SWAP DROP OVER ( a u1 u2 u1 ) = IF 2DROP EXIT THEN
+  \ Erase the flash page and restore the first u1 bytes. u1>0 !
+    ( a u1 ) ." +" $FP [ ( xt?efp xt?epp ) OVER , ]             
+    ( a u1 ) 2DUP $FP SWAP ( a u1  a $FP u1 ) WRITE
+    OVER ( a u1 a ) ERASE
+    $FP ROT ROT ( $FP a u1 ) WRITE
+    $FP ERASE
+;
+
+:NONAME ( -- xt?erase )
+\ : ?erase ( a1 -- )
+\ Erase the flash memory page, addr a1 is pointing into. SOP =< a1 < EOP.
+\ SOP = Start of Page , EOP = End of Page, both are page aligned
+    DUP $FE00 AND ( a1 a2 )                          \ a2 = page addr
+    DUP >R - ( u ) R> SWAP ( a2 u )                  \ u = chars in page
+    ?DUP IF ( a2 u )                                 \ partial page erase
+           [ ( xt?efp xt?epp xt?erase sys ) ROT , ]
+         ELSE ( a2 )                                 \ full page erase
+           [ ( xt?efp xt?erase SYS ) ROT , ]
+         THEN 
+;
+
+:NONAME ( -- xt?wipe )
+\ : ?wipe ( a -- )
+\ Erase the flash memory from addr $FP down to addr a.
+    SPACE
+    $FP    \ page buffer addr
+    BEGIN  ( a ai )
+      OVER MAX ( a ai )    \ ai >= a
+      DUP [ ( xt?erase xt?wipe sys ) ROT , ] 
+      2DUP ( a ai ) U<     \ terminate when ai = a
+    WHILE
+      $200 - 
+    REPEAT 
+    2DROP
+;
+
+:NONAME ( -- xt.HI )
+\ : HI ( -- )
+\ Erase the Flash memory from $FP+$200 to CP and issue the start up message.
+    CP @ [ ( xt?wipe xt.HI ) OVER , ] HI
+;
+
+: SAVE ( -- )
+  \ Save the current eForth state to the Flash Information Memory, to be 
+  \ restored at boot time or by COLD.
+    'BOOT @ DUP CP @ U< 0 =
+    IF DROP [ ( xt?wipe xt.HI sys ) $LIT , SWAP , ] THEN APP!
+    ."  SAVEd "
+;  
+
+:NONAME ( -- xt.rewind )
+\ : rewind ( DP CONTEXT CP -- )
+\ The runtime procedure for eForth and SHIELD.
+  DUP [ ( xt?wipe xt.rewind ) SWAP , ]
+  BASE @ >R HEX .S R> BASE !
+  CP ! DUP $214 ! $20E ! DP !   \ Update memory related user variables.
+  SAVE
+;
+CONSTANT $RW \ xt.rewind
+
+: eForth ( -- )
+\ Reset the eForth USER variables DP CP CONTEX and APP, remove all user-defined
+\ words from the dictionary and update the cold-start data in the Flash
+\ Information Memory.
+   [ $LIT , DP @ ,                   \ DP
+     $LIT , $214 @ ,                 \ CONTEXT = NFA of reset
+     $LIT , CP @ $200 + $FE00 AND ,  \ CP = addr of next code page
+   ] $FFFF 'BOOT !                   \ 'BOOT > CP , resets 'BOOT in rewind
+   [ $RW , ]                         \ rewind
+;
+
+\ The current dictionary pointer:
+HEX CP ?
+
+\ Unused bytes in the current Flash Memory page:
+  CP @  DUP $200 + $FE00 AND 1 - SWAP - DECIMAL .
+
+\ Save the current eForth state (CP points to the next Flash page) :
+HEX eForth
+
+\ SHIELD is added here for convenience but may be removed with eForth:
+: SHIELD ( "name" -- )
+    CP @ 1 + -2 AND CP !  \ align  
+    :                                \ starts a shield colon definition
+    $LIT , DP @ ,                    \ save DP
+    $LIT , $214 @ ,                  \ save NFA of created shield
+    $LIT , CP @ 2 IALLOT             \ addr to store CP later
+    $RW ,                            \ xt.rewind
+    [ ' ; , ]                        \ ends the shield colon definition
+    CP @ ( .S) SWAP I!               \ store CP to addr at new shield
+    SAVE
+;
+
+HEX SAVE
+
+\ Free Flash Memory Bytes up to $FP :
+$FP CP @ - DECIMAL U.
+
+\index  SAVE  eForth
+
+\ Last Revision: MM-170208 RESET renamed to eForth , file name renamed to eForth
+\                MM-170207 Source for $LIT, and :NONAME added
+\                MM-170206 renamed DOLIT to $LIT
+\                MM-170205 code cleaned up
+\                MM-170203 many words changed to NONAMES
+

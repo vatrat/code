@@ -1,0 +1,5 @@
+\ ms  for 430eForth                                                   MM-170120
+
+: ms ( u -- )
+\ Wait u millisconds.
+  FOR $2B2 FOR NEXT NEXT ;

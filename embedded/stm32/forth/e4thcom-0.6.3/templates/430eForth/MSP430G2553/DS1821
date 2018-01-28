@@ -1,0 +1,65 @@
+\ DS1821 Digital Thermometer and Thermostat with 1-Wire Interface     MM-141222
+\
+\ Requires: * 430eForth v4.3 on a MSP430G2553 launchpad
+\           * e4thcom-0.6.1 -t 430eforth-xas
+\
+
+#require onewire.xas  \ 1-wire bus driver
+#require ms
+
+BASE @ HEX
+
+: ow.t/r ( c -- c' ) \ Transmit and receive one byte to/from the 1-Wire Bus.
+    7 FOR owslot ( pause ) NEXT ;
+
+: ow.tx ( c -- ) \ Send one byte to the 1-Wire Bus.
+    ow.t/r DROP ;
+
+: ow.rx ( -- c ) \ Receive one byte from the 1-Wire Bus.
+    0FF ow.t/r ;
+
+: ow?reset ( -- )
+  \ Two calls to owreset may be required to detect a device after a COLD start,
+  \ see the definition of owreset.
+    owreset IF EXIT THEN owreset 0= ABORT" no device detected" ;
+
+: ow.c@ ( a -- c' )
+  \ Send an addr byte a to 1-Wire Bus and read a data byte back.
+    ow?reset ow.tx ow.rx ;
+
+: ow.c! ( c a -- )
+  \ Send an addr and data byte to the 1-Wire Bus.
+    ow?reset ow.tx ow.tx ;
+
+
+: ds1821.read.status ( -- c ) 0AC ow.c@ ;
+
+: ds1821.write.status ( c -- ) 0C ow.c! ;
+
+: ds1821.start ( -- ) 0EE ow?reset ow.tx ;
+: ds1821.stop  ( -- ) 022 ow?reset ow.tx ;
+
+: ds1821.1shot ( -- ) ds1821.read.status 01 OR ds1821.write.status ;
+: ds1821.cont  ( -- ) ds1821.read.status 0FE AND ds1821.write.status ;
+
+: ds1821.read ( -- c ) 0AA ow.c@  BASE @ >R DECIMAL . R> BASE ! ;
+
+DECIMAL
+
+: ds1821.scan ( -- ) \ Read the temperature every second.
+    ds1821.start 500 ms 
+    BEGIN ds1821.read 1000 ms ?KEY UNTIL DROP ;
+
+BASE !
+
+#require cbits
+
+: ds1821.status ( -- ) \ Show the DS1821 Status Register
+  CR ." DS1821 Status Register:" ds1821.read.status cbits
+  CR ." DONE       1       NVB      THF      TLF      T/R      POL     1SHOT"
+  CR ;
+
+\index  ds1821.status  ds1821.scan
+
+\ Last Rev. MM-170120 ported FROM 430CamelForth to 430eForth
+

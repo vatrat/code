@@ -1,0 +1,77 @@
+e4thcom: 0.6.3 \ noforth-xas.efc : plugin with cross assembler        MM-150221
+\ -----------------------------------------------------------------------------
+\                  (C) 2015-2016 manfred.mahlow@forth-ev.de
+\
+\                Tested with noForth C/V on a MSP430G2 LaunchPad.
+\ -----------------------------------------------------------------------------
+
+include noforth.efc   \ the noforth plugin
+
+<brown
+cr ." * Loading MSP430 Cross-Assembler for noForth (noForth-xas.efc)"
+normal>
+
+terminal xas definitions hex
+
+\ The cross assembler interface for noForth :
+
+s" chere" xas.xhere !
+s" rom!"  xas.x!    !
+s" ,"     xas.x,    !
+s" c@"    xas.xc@   !
+s" @"     xas.x@    !
+
+\ MCU Register usage in noForth :
+
+multi constant
+  00 pc   01 rp    02 sr   03 cg    04 sp   05 ip    06 w    07 tos
+  00 PC   01 RP    02 SR   03 CG    04 SP   05 IP    06 W    07 TOS
+
+  08 day  09 moon  0A sun  0B xx    0C yy   0D zz   0E dox   0F nxt
+  08 DAY  09 MOON  0A SUN  0B XX    0C YY   0D ZZ   0E DOX   0F NXT
+  08 R08  09 R09   0A R10  0B R11   0C R12  0D R13
+                           0B xx    0C yy   0D zz 
+                           0B XX    0C YY   0D ZZ
+                           0B RAIN  0C SNOW 0D FOG 
+                           0B rain  0C snow 0D fog   \\
+
+cr .(    MCU:noForth system registers: )
+cr .(      00:PC  01:RP  02:SR  03:CG  04:SP  05:IP  07:TOS  14:DOX  15:NXT)
+cr .(    Locally used registers:           Unused registers: )
+cr .(      06:W  08:DAY  09:MOON  10:SUN     11:XX  12:YY  13:ZZ )
+
+
+include msp430xas.efx  \ the (target independend) MSP430 cross-assembler core
+                       \ derived from the noForth assembler
+
+terminal xas definitions hex
+
+: next ( -- ) nxt pc mov ;
+
+forth definitions decimal
+
+<brown
+cr ." * Loading MSP430 Cross-Disassembler (msp430xdas.efx)"
+normal>
+
+include msp430xdas.efx  \ the MSP430 cross disassembler derived from noForth
+
+forth definitions decimal
+
+warning off
+
+\ Last Revision: MM-171031 0.6.3
+\                MM-161224 e4thcom: 0.6.1
+\                MM-161010 e4thcom: 0.6.0
+\                MM-161010 e4thcom: 0.5.5
+\                MM-160629 __SmartTerm --> terminal
+\                MM-160728 MM-160728 new class prefix: __ 
+\                MM-151112 renamed noforth-MSP430G2553.efc to noforth-xas.efc
+\                MM-151011 xWords moved to e4thcom...mf, interface words added
+\                MM-151010 target words in xWords changed to upper case
+\                MM-151004 renamed noforth.efx to noforth-MSP430G2553.efc
+\                          x$ x$$s moved to noforth.efc
+\                          MCR Register usage hint added
+\                MM-150908 x$ : error check added, base local hex added
+
+

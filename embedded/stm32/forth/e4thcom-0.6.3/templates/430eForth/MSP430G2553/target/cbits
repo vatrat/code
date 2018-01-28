@@ -1,0 +1,6 @@
+\ 430eForth:  cbits                                                   MM-170120
+
+: cbits ( c -- ) \ Show the bits of the byte c.
+  CR ." BIT7     BIT6     BIT5     BIT4     BIT3     BIT2     BIT1     BIT0"           
+  CR 7 FOR DUP $80 AND 0 > ABS 3 .R $6 SPACES 2* NEXT DROP CR ;
+

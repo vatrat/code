@@ -1,0 +1,97 @@
+e4thcom: 0.6.3 \ noforth.efc : noForth plugin                         MM-140831
+\ ------------------------------------------------------------------------------
+\                   (C) 2015-2016 manfred.mahlow@forth-ev.de
+\
+\                Tested with noForth C/V on a MSP430G2 LaunchPad.
+\ ------------------------------------------------------------------------------
+
+cr <brown ." * Loading Plugin for noForth C/V (noforth.efc)." normal>
+
+cr ."    noForth must send " <bright ." ACK or NAK " normal>
+   ." after processing a line of uploaded source code."
+
+cr ."    Type '" <bright ." OK  HX 8000 OR  TO OK  FREEZE " normal>
+   ." [Enter]' once on a newly flashed system."
+
+cr
+."    Use the " <bright ." TAB " normal> ." key to cancel an upload process."
+
+__e4thcom definitions decimal
+
+m: noprompt ( oid -- ) self emit? @ if ^CR emit 4 spaces ^CR emit then ;
+
+\ Protocol handler for noForth with ACK/NAK support enabled.
+ :noname ( oid -- flag )
+     \ Wait while the target evalutes a line of uploaded source code. Return 
+     \ a true flag on error or if [Ctrl] [B] was pressed. Otherwise return a
+     \ false flag.
+     >self  self rx-buf erase  white bright letters
+     begin
+       \ receive a char from the target, exit if the user pressed [Ctrl][B]
+       self rx?break ( c f ) if drop true exit then
+       ( c ) dup self rx-buf append
+       ( c ) dup bl <  
+       if \ control char received 
+         ( c ) dup ^ACK = if drop self noprompt false exit then
+         ( c ) dup ^NAK = if drop self noprompt  true exit then
+       then
+       ( c ) self ?emit
+     again ;
+
+  terminal plugin !   
+
+\ terminal upper-case off  \ the default
+
+  s" mcu:target:lib" terminal path !
+
+  forth definitions    warning off
+
+\ Last revision: MM-171031 0.6.3
+\                MM-161224 upper-case added
+\                MM-161224 e4thcom: 0.6.1
+\                MM-161014 e4thcom: 0.6.0
+\                MM-161010 e4thcom: 0.5.5
+\                MM-160813 __SmartTerm --> __e4thcom
+\                MM-160727 new class prefix: __ 
+\                MM-151101 Tested with noForth C/V 151006
+\                MM-150221 taken from e4thcom 0.4, modified for e4thcom 0.5
+\
+\\
+-------------------------------------------------------------------------------
+ noForth protocol details with value ok set to 8007h
+-------------------------------------------------------------------------------
+
+   _ = bl   ^0A = ^NL   ^0D = ^CR    ^06 = ^ACK    ^15 = ^NAK
+
+[Enter]         __OK.0^0D^0A@)^06
+
+'_base[Enter]   __OK.1^0D^0A@)^06
+
+:_Y[Enter]      __ok.2^0D^0A^06
+
+.s[Enter]       __ok.2^0D^0A^06
+
+;[Enter]        __OK.0^0D^0A@)^06
+
+
+X[Enter]        _^0D^0A_Msg_from_INTERPRET_\_Error_#_D7C5_^0D^0A@)^15
+
+'_X[Enter]      _^0D^0A___Msg_from_'_\_Error_#_DB3D_^0D^0A@)^15
+
+abort[Enter]    _^0D^0A_____^0D^0A@)^15
+
+                : test abort" aborted" ;
+
+test[Enter]     _^0D^0Aaborted^0D^0A_____\_Error_#_FFFE_^0D^0A@)^15
+
+drop[Enter]     _^0D^0AMsg_from_?STACK_\_Error_#_D077_^0D^0A@)^15
+
+
+:_Y[Enter]      __Y_is_not_new__ok.2^0D^0A^06
+
+X[Enter]        _^0D^0A_Msg_from_INTERPRET_\_Error_#_D7C5_^0D^0A@)^15
+
+:_Y_.s_;[Enter] __Y_is_not_new__OK.0^0D^0A@)^06
+
+\ ------------------------------------------------------------------------------
+

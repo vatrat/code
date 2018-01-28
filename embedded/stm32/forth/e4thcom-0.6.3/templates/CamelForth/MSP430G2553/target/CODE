@@ -1,0 +1,23 @@
+\ e4thcom 0.6.1 cross-assembler interface for 430CamelForth            MM-161227
+
+: CODE ( <name> -- )
+  \ start a (cross-) assembler definition
+    <BUILDS HIDE IHERE DUP 2 - I! ;
+  \
+  \ Syntax:  CODE name 
+  \            ..........
+  \          END-CODE
+
+: CODE-BEGIN ( -- 1234 ) 1234 ;
+  \ Enable the (cross-)assembler. Do not create a word header.
+  \
+  \ Syntax:  code-begin 
+  \            ..........
+  \          end-code
+
+: END-CODE ( |1234 -- )
+  \ Disable the (cross-)assembler
+    DUP 1234 = IF DROP ELSE REVEAL THEN ;
+
+\ Last Revision: MM-161229
+

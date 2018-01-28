@@ -1,0 +1,75 @@
+e4thcom: 0.6.3  \ e4thcom: mecrisp-msp430xas.efc                       MM-150424
+\
+\ (C) 2015 manfred.mahlow@forth-ev.de
+\
+\ This is a mecrisp specific loader for a MSP430 family cross-assembler for the 
+\ e4thcom terminal 0.5.1, derived from noforth1210.
+
+require mecrisp.efc
+
+<brown
+cr ." * Loading MSP430 Cross-Assembler (mecrisp-msp430xas.efc)"
+normal>
+
+terminal xas definitions hex
+
+\ The cross assembler interface for mecrisp :
+
+s" here"  xas.xhere !
+s" !"     xas.x!    !
+s" ,"     xas.x,    !
+s" c@"    xas.xc@   !
+s" @"     xas.x@    !
+
+: x! ( h: x a -- ) ( t: -- )
+  \ Store x at address a in the targets dictionary in RAM or FLASH
+  s" compiletoram? ." xeval&pop if s" !" else s" flash!" then xas.x! ! x! ;
+
+
+\ CPU Register usage in mecrisp :
+
+multi constant
+  00 pc   01 rp    02 sr   03 cg    04 sp   05 index   06 limit   07 r07
+  00 PC   01 RP    02 SR   03 CG    04 SP   05 INDEX   06 LIMIT   07 R07  \\
+
+multi constant
+  08 r08   09 r09   0A r10   0B r11   0C r12   0D r13   0E r14   0F r15
+  08 R08   09 R09   0A R10   0B R11   0C R12   0D R13   0E R14   0F R15   \\
+
+multi constant  r07 w  R07 W  \\ 
+
+cr .(    MCU:Mecrisp system registers: )
+cr .(     00:PC   01|SP:RP  02:SR   03:CG   04:SP   05:INDEX  06:LIMIT  07:W )
+cr .(     08:R08  09:R09    10:R10  11:R11  12:R12  13:R13    14:R14    15:R15 )
+cr .(       R07 is a scratch register, only saved on interrupt entry. )
+cr .(       R08 and R09 are not used, R10-R15 are used but allways saved. )
+
+include msp430xas.efx  \ the (target independend) MSP430 cross-assembler core
+
+terminal xas definitions hex
+
+: next ( -- ) ret ;
+
+forth definitions decimal
+
+cr <brown ." * Loading MSP430 Cross-Disassembler (msp430xdas.efx)"
+   normal>
+
+include msp430xdas.efx  \ the MSP430 cross disassembler derived from noForth
+
+\ MM-161227  Register Names for 4e4th
+
+terminal xdas
+
+\  R0  R1  R2  R3  R4  R5  R6  R7  R8  R9  R10 R11 R12 R13 R14 R15
+s" pc  rp  sr  cg  sp  R05 R06 w   R08 R09 R10 R11 R12 R13 R14 R15 " regs !
+
+forth definitions decimal
+
+\ Last Revision: MM-171110 0.6.3
+\                MM-161231 e4thcom-0.6.1
+\                MM-151011 xWords moved to e4thcom...mf, interface words added
+\                MM-151004 loads extends mecrisp.efc, file renamed from 
+\                          mecrisp.efx to mecrisp-MSP430G2553.efc
+\                MM-151003 compiletoram? added to x!
+
